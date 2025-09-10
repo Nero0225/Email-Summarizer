@@ -11,6 +11,7 @@ A professional Flask application that generates intelligent daily digests from y
 - **Privacy Mode**: Built-in PII redaction to protect sensitive information
 - **Once-Daily Generation**: Enforces healthy email habits with single daily digest limit
 - **Multi-User Support**: Complete user management system with admin panel
+- **Microsoft OAuth Authentication**: Secure registration and login through Microsoft 365 accounts
 
 ### Technical Highlights
 - Modern Flask architecture with blueprints and application factory pattern
@@ -26,6 +27,17 @@ A professional Flask application that generates intelligent daily digests from y
 - Microsoft Azure account (for Graph API access)
 - OpenAI API key (for AI processing)
 - Git
+
+## 🔐 Authentication
+
+The Email Summarizer uses Microsoft OAuth2 for secure authentication:
+
+1. **Registration**: New users sign up using their Microsoft 365 accounts
+2. **Auto-Admin Detection**: Users with email domains listed in `ADMIN_EMAIL_DOMAINS` are automatically granted admin privileges
+3. **Role-Based Routing**: 
+   - Admin users are automatically redirected to the Admin Dashboard
+   - Regular users access the standard user dashboard
+4. **Account Linking**: Existing users can link their Microsoft accounts for email/calendar access
 
 ## 🚀 Quick Start
 
@@ -53,10 +65,11 @@ pip install -r requirements.txt
 ### 3. Configure Environment Variables
 ```bash
 # Copy example environment file
-cp .env.example .env
+cp env.template .env
 
 # Edit .env with your configuration
 # Required: AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, OPENAI_API_KEY
+# Configure ADMIN_EMAIL_DOMAINS for automatic admin detection
 ```
 
 ### 4. Initialize Database
@@ -68,6 +81,12 @@ flask db upgrade
 
 # Create admin user
 flask create-admin
+
+# Or use the initialization script
+python init_db.py
+
+# For existing installations, run the OAuth migration
+python migrate_to_oauth.py
 ```
 
 ### 5. Run the Application
@@ -112,6 +131,9 @@ MAX_EMAILS_PER_DIGEST=200
 DAILY_DIGEST_LIMIT=1
 DEFAULT_WORK_START_HOUR=9
 DEFAULT_WORK_END_HOUR=17
+
+# Admin Configuration
+ADMIN_EMAIL_DOMAINS=admin.com,administrator.com  # Comma-separated list of admin email domains
 ```
 
 ## 📁 Project Structure

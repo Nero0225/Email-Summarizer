@@ -102,6 +102,9 @@ class User(UserMixin, db.Model):
         Returns:
             bool: True if password matches, False otherwise
         """
+        # OAuth users may not have a password
+        if not self.password_hash:
+            return False
         return check_password_hash(self.password_hash, password)
     
     @property
@@ -123,6 +126,11 @@ class User(UserMixin, db.Model):
     def has_microsoft_linked(self):
         """Check if user has linked Microsoft account"""
         return bool(self.microsoft_account_email)
+    
+    @property
+    def is_oauth_user(self):
+        """Check if user registered via OAuth (no password)"""
+        return self.password_hash is None and self.microsoft_account_email is not None
     
     def update_last_login(self):
         """Update last login timestamp"""

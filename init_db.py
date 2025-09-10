@@ -54,7 +54,10 @@ Admin account created:
 - Username: admin
 - Password: {admin_password}
 
-⚠️  IMPORTANT: Change the admin password after first login!
+⚠️  IMPORTANT: 
+1. This admin account uses traditional login. For production, use Microsoft OAuth.
+2. Configure ADMIN_EMAIL_DOMAINS in .env to auto-assign admin privileges to specific email domains.
+3. Users should register using Microsoft OAuth for secure authentication.
 
 To start the application, run:
     python run.py

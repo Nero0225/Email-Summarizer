@@ -73,6 +73,10 @@ class Config:
     RATELIMIT_ENABLED = os.getenv('RATELIMIT_ENABLED', 'True').lower() == 'true'
     RATELIMIT_STORAGE_URL = os.getenv('RATELIMIT_STORAGE_URL', 'memory://')
     
+    # Admin settings
+    ADMIN_EMAIL_DOMAINS = os.getenv('ADMIN_EMAIL_DOMAINS', 'admin.com,administrator.com').split(',')
+    ADMIN_DEFAULT_PASSWORD = os.getenv('ADMIN_DEFAULT_PASSWORD', 'admin123')
+    
     @staticmethod
     def init_app(app):
         """Initialize application with this config"""

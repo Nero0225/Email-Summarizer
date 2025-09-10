@@ -21,6 +21,10 @@ from app.utils.decorators import check_daily_limit
 @login_required
 def index():
     """Main dashboard with 'How's My Day' button"""
+    # Redirect admin users to admin dashboard
+    if current_user.is_admin:
+        return redirect(url_for('admin.dashboard'))
+    
     # Get user settings
     settings = current_user.settings
     if not settings:

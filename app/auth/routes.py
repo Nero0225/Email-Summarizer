@@ -30,24 +30,34 @@ def login():
             (User.email == form.username.data.lower())
         ).first()
         
-        if user and user.check_password(form.password.data):
-            if user.status == UserStatus.APPROVED:
-                login_user(user, remember=form.remember_me.data)
-                user.update_last_login()
-                
-                # Handle next page redirect
-                next_page = request.args.get('next')
-                if not next_page or urlparse(next_page).netloc != '':
-                    next_page = url_for('main.index')
-                
-                flash(f'Welcome back, {user.full_name}!', 'success')
-                return redirect(next_page)
-            elif user.status == UserStatus.PENDING:
-                flash('Your account is pending approval. Please wait for an administrator to approve your account.', 'warning')
-            elif user.status == UserStatus.REJECTED:
-                flash('Your account application was rejected. Please contact support for more information.', 'danger')
-            elif user.status == UserStatus.SUSPENDED:
-                flash('Your account has been suspended. Please contact support.', 'danger')
+        if user:
+            # Check if this is an OAuth-only user
+            if user.is_oauth_user:
+                flash('This account uses Microsoft sign-in. Please use "Sign in with Microsoft" instead.', 'warning')
+            elif user.check_password(form.password.data):
+                if user.status == UserStatus.APPROVED:
+                    login_user(user, remember=form.remember_me.data)
+                    user.update_last_login()
+                    
+                    # Handle next page redirect
+                    next_page = request.args.get('next')
+                    if not next_page or urlparse(next_page).netloc != '':
+                        # Redirect admin users to admin dashboard
+                        if user.is_admin:
+                            next_page = url_for('admin.dashboard')
+                        else:
+                            next_page = url_for('main.index')
+                    
+                    flash(f'Welcome back, {user.full_name}!', 'success')
+                    return redirect(next_page)
+                elif user.status == UserStatus.PENDING:
+                    flash('Your account is pending approval. Please wait for an administrator to approve your account.', 'warning')
+                elif user.status == UserStatus.REJECTED:
+                    flash('Your account application was rejected. Please contact support for more information.', 'danger')
+                elif user.status == UserStatus.SUSPENDED:
+                    flash('Your account has been suspended. Please contact support.', 'danger')
+            else:
+                flash('Invalid username/email or password. Please try again.', 'danger')
         else:
             flash('Invalid username/email or password. Please try again.', 'danger')
     
@@ -62,42 +72,45 @@ def logout():
     return redirect(url_for('auth.login'))
 
 
-@auth_bp.route('/register', methods=['GET', 'POST'])
+@auth_bp.route('/register')
 def register():
-    """User registration route"""
+    """User registration route - redirects to Microsoft OAuth"""
     if current_user.is_authenticated:
+        if current_user.is_admin:
+            return redirect(url_for('admin.dashboard'))
         return redirect(url_for('main.index'))
     
-    form = RegistrationForm()
-    if form.validate_on_submit():
-        try:
-            user_service = UserService()
-            user = user_service.create_user(
-                username=form.username.data.strip().lower(),
-                full_name=form.full_name.data.strip(),
-                email=form.email.data.strip().lower(),
-                password=form.password.data
-            )
-            
-            flash(
-                'Your account has been created successfully! '
-                'Please wait for an administrator to approve your account before you can log in.',
-                'success'
-            )
-            return redirect(url_for('auth.login'))
-            
-        except ValueError as e:
-            flash(str(e), 'danger')
-        except Exception as e:
-            current_app.logger.error(f'Registration error: {str(e)}')
-            flash('An error occurred during registration. Please try again.', 'danger')
+    # Redirect to Microsoft OAuth for registration
+    return redirect(url_for('auth.microsoft_register'))
+
+
+@auth_bp.route('/microsoft/register')
+def microsoft_register():
+    """Initiate Microsoft OAuth2 registration"""
+    if current_user.is_authenticated:
+        if current_user.is_admin:
+            return redirect(url_for('admin.dashboard'))
+        return redirect(url_for('main.index'))
     
-    return render_template('auth/register.html', form=form)
+    microsoft_service = MicrosoftService()
+    auth_url = microsoft_service.get_auth_url()
+    
+    if auth_url:
+        # Store registration flag in session
+        session['microsoft_auth_type'] = 'register'
+        return redirect(auth_url)
+    else:
+        flash(
+            'Microsoft authentication is not configured. '
+            'Please contact your administrator.',
+            'danger'
+        )
+        return redirect(url_for('auth.login'))
 
 
 @auth_bp.route('/microsoft/login')
 def microsoft_login():
-    """Initiate Microsoft OAuth2 login"""
+    """Initiate Microsoft OAuth2 login for account linking"""
     if not current_user.is_authenticated:
         flash('Please log in first to link your Microsoft account.', 'warning')
         return redirect(url_for('auth.login'))
@@ -106,8 +119,9 @@ def microsoft_login():
     auth_url = microsoft_service.get_auth_url()
     
     if auth_url:
-        # Store user ID in session for callback
+        # Store user ID and auth type in session for callback
         session['linking_user_id'] = current_user.id
+        session['microsoft_auth_type'] = 'link'
         return redirect(auth_url)
     else:
         flash(
@@ -120,16 +134,18 @@ def microsoft_login():
 
 @auth_bp.route('/microsoft/callback')
 def microsoft_callback():
-    """Handle Microsoft OAuth2 callback"""
+    """Handle Microsoft OAuth2 callback for both registration and account linking"""
     # Get authorization code or error from query parameters
     auth_code = request.args.get('code')
     error = request.args.get('error')
     error_description = request.args.get('error_description')
     
-    # Get the user who is linking their account
+    # Get auth type from session
+    auth_type = session.pop('microsoft_auth_type', None)
     linking_user_id = session.pop('linking_user_id', None)
-    if not linking_user_id:
-        flash('Session expired. Please try linking your Microsoft account again.', 'warning')
+    
+    if not auth_type:
+        flash('Session expired. Please try again.', 'warning')
         return redirect(url_for('auth.login'))
     
     # Handle OAuth errors
@@ -138,11 +154,11 @@ def microsoft_callback():
         if error_description:
             error_msg += f' - {error_description}'
         flash(error_msg, 'danger')
-        return redirect(url_for('main.settings'))
+        return redirect(url_for('auth.login'))
     
     if not auth_code:
         flash('No authorization code received from Microsoft.', 'danger')
-        return redirect(url_for('main.settings'))
+        return redirect(url_for('auth.login'))
     
     try:
         microsoft_service = MicrosoftService()
@@ -152,59 +168,128 @@ def microsoft_callback():
             # Get Microsoft user profile
             profile = microsoft_service.get_user_profile(token_result['access_token'])
             microsoft_email = profile.get('mail') or profile.get('userPrincipalName')
+            display_name = profile.get('displayName', '')
             
             if microsoft_email:
-                # Get user and link Microsoft account
-                user = User.query.get(linking_user_id)
-                if user:
-                    user.link_microsoft_account(microsoft_email)
+                # Calculate token expiration
+                expires_at = datetime.utcnow() + timedelta(
+                    seconds=token_result.get('expires_in', 3600)
+                )
+                
+                if auth_type == 'register':
+                    # Handle registration flow
+                    # Check if user already exists with this email
+                    existing_user = User.query.filter_by(email=microsoft_email.lower()).first()
+                    if existing_user:
+                        flash('An account with this email already exists. Please log in instead.', 'warning')
+                        return redirect(url_for('auth.login'))
                     
-                    # Store or update tokens
-                    expires_at = datetime.utcnow() + timedelta(
-                        seconds=token_result.get('expires_in', 3600)
+                    # Create username from email
+                    username = microsoft_email.split('@')[0].lower()
+                    # Ensure username is unique
+                    base_username = username
+                    counter = 1
+                    while User.query.filter_by(username=username).first():
+                        username = f"{base_username}{counter}"
+                        counter += 1
+                    
+                    # Check if this is an admin email domain
+                    # You can customize this logic based on your requirements
+                    admin_domains = current_app.config.get('ADMIN_EMAIL_DOMAINS', ['admin.com'])
+                    is_admin = any(microsoft_email.lower().endswith(f'@{domain}') for domain in admin_domains)
+                    
+                    # Create new user
+                    user_service = UserService()
+                    user = user_service.create_user(
+                        username=username,
+                        full_name=display_name or username,
+                        email=microsoft_email.lower(),
+                        password=None,  # No password for OAuth users
+                        microsoft_account_email=microsoft_email,
+                        is_admin=is_admin,
+                        auto_approve=True  # Auto-approve Microsoft OAuth users
                     )
                     
-                    if user.microsoft_tokens:
-                        user.microsoft_tokens.update_tokens(
-                            access_token=token_result['access_token'],
-                            refresh_token=token_result.get('refresh_token'),
-                            expires_at=expires_at,
-                            scope=' '.join(microsoft_service.scopes)
-                        )
+                    # Store tokens
+                    token_record = MicrosoftToken(
+                        user_id=user.id,
+                        access_token=token_result['access_token'],
+                        refresh_token=token_result.get('refresh_token'),
+                        token_expires_at=expires_at,
+                        scope=' '.join(microsoft_service.scopes)
+                    )
+                    db.session.add(token_record)
+                    
+                    # Create user settings
+                    settings = UserSettings(user_id=user.id)
+                    settings.update_setting('use_test_data', False)  # Use real data for OAuth users
+                    db.session.add(settings)
+                    db.session.commit()
+                    
+                    # Log the user in
+                    login_user(user, remember=True)
+                    flash(f'Welcome {display_name}! Your account has been created successfully.', 'success')
+                    
+                    # Redirect based on role
+                    if user.is_admin:
+                        return redirect(url_for('admin.dashboard'))
                     else:
-                        token_record = MicrosoftToken(
-                            user_id=user.id,
-                            access_token=token_result['access_token'],
-                            refresh_token=token_result.get('refresh_token'),
-                            token_expires_at=expires_at,
-                            scope=' '.join(microsoft_service.scopes)
+                        return redirect(url_for('main.index'))
+                
+                elif auth_type == 'link' and linking_user_id:
+                    # Handle account linking flow
+                    user = User.query.get(linking_user_id)
+                    if user:
+                        user.link_microsoft_account(microsoft_email)
+                        
+                        # Store or update tokens
+                        if user.microsoft_tokens:
+                            user.microsoft_tokens.update_tokens(
+                                access_token=token_result['access_token'],
+                                refresh_token=token_result.get('refresh_token'),
+                                expires_at=expires_at,
+                                scope=' '.join(microsoft_service.scopes)
+                            )
+                        else:
+                            token_record = MicrosoftToken(
+                                user_id=user.id,
+                                access_token=token_result['access_token'],
+                                refresh_token=token_result.get('refresh_token'),
+                                token_expires_at=expires_at,
+                                scope=' '.join(microsoft_service.scopes)
+                            )
+                            db.session.add(token_record)
+                            db.session.commit()
+                        
+                        # Update user settings to use real data
+                        if user.settings:
+                            user.settings.update_setting('use_test_data', False)
+                        
+                        flash(
+                            f'Successfully linked Microsoft 365 account ({microsoft_email})!',
+                            'success'
                         )
-                        db.session.add(token_record)
-                        db.session.commit()
-                    
-                    # Update user settings to use real data
-                    if user.settings:
-                        user.settings.update_setting('use_test_data', False)
-                    
-                    flash(
-                        f'Successfully linked Microsoft 365 account ({microsoft_email})!',
-                        'success'
-                    )
+                        return redirect(url_for('main.settings'))
+                    else:
+                        flash('User not found. Please try again.', 'danger')
+                        return redirect(url_for('auth.login'))
                 else:
-                    flash('User not found. Please try again.', 'danger')
+                    flash('Invalid authentication type.', 'danger')
+                    return redirect(url_for('auth.login'))
             else:
                 flash('Could not retrieve email from Microsoft profile.', 'danger')
+                return redirect(url_for('auth.login'))
         else:
             error_msg = 'Failed to obtain access token from Microsoft.'
             if token_result and 'error_description' in token_result:
                 error_msg += f" {token_result['error_description']}"
             flash(error_msg, 'danger')
+            return redirect(url_for('auth.login'))
             
     except Exception as e:
         current_app.logger.error(f'Microsoft auth callback error: {str(e)}')
         flash(f'Microsoft authentication error: {str(e)}', 'danger')
-    
-    return redirect(url_for('main.settings'))
+        return redirect(url_for('auth.login'))
 
 
 @auth_bp.route('/microsoft/unlink')

@@ -16,8 +16,9 @@ class UserService:
     """Service class for user management operations"""
     
     def create_user(self, username: str, email: str, full_name: str, 
-                   password: str, is_admin: bool = False, 
-                   auto_approve: bool = False) -> User:
+                   password: str = None, is_admin: bool = False,
+                   auto_approve: bool = False, 
+                   microsoft_account_email: str = None) -> User:
         """
         Create a new user account
         
@@ -25,9 +26,10 @@ class UserService:
             username: User's username
             email: User's email address
             full_name: User's full name
-            password: Plain text password
+            password: Plain text password (optional for OAuth users)
             is_admin: Whether user should be admin
             auto_approve: Whether to auto-approve account
+            microsoft_account_email: Microsoft account email for OAuth users
             
         Returns:
             Created User object
@@ -52,8 +54,13 @@ class UserService:
             status=UserStatus.APPROVED if auto_approve else UserStatus.PENDING
         )
         
-        # Set password
-        user.set_password(password)
+        # Set password only if provided (OAuth users may not have passwords)
+        if password:
+            user.set_password(password)
+        
+        # Link Microsoft account if provided
+        if microsoft_account_email:
+            user.link_microsoft_account(microsoft_account_email)
         
         # Set approval timestamp if auto-approved
         if auto_approve:
