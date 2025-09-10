@@ -86,7 +86,7 @@ def register():
 
 @auth_bp.route('/microsoft/register')
 def microsoft_register():
-    """Initiate Microsoft OAuth2 registration"""
+    """Initiate Microsoft OAuth2 registration/login"""
     if current_user.is_authenticated:
         if current_user.is_admin:
             return redirect(url_for('admin.dashboard'))
@@ -132,7 +132,7 @@ def microsoft_login():
         return redirect(url_for('main.settings'))
 
 
-@auth_bp.route('/microsoft/callback')
+@auth_bp.route('/callback')
 def microsoft_callback():
     """Handle Microsoft OAuth2 callback for both registration and account linking"""
     # Get authorization code or error from query parameters
@@ -178,63 +178,99 @@ def microsoft_callback():
                 
                 if auth_type == 'register':
                     # Handle registration flow
-                    # Check if user already exists with this email
-                    existing_user = User.query.filter_by(email=microsoft_email.lower()).first()
-                    if existing_user:
-                        flash('An account with this email already exists. Please log in instead.', 'warning')
+                    try:
+                        # Check if user already exists with this email
+                        existing_user = User.query.filter_by(email=microsoft_email.lower()).first()
+                        if existing_user:
+                            # User already exists - check if they have Microsoft linked
+                            if existing_user.microsoft_account_email:
+                                # Already has Microsoft linked, just log them in
+                                login_user(existing_user, remember=True)
+                                existing_user.update_last_login()
+                                flash(f'Welcome back, {existing_user.full_name}!', 'success')
+                                
+                                # Redirect based on role
+                                if existing_user.is_admin:
+                                    return redirect(url_for('admin.dashboard'))
+                                else:
+                                    return redirect(url_for('main.index'))
+                            else:
+                                # User exists but no Microsoft account linked
+                                flash('An account with this email already exists. Please log in to link your Microsoft account.', 'info')
+                                return redirect(url_for('auth.login'))
+                        
+                        # Create username from email
+                        username = microsoft_email.split('@')[0].lower()
+                        # Ensure username is unique
+                        base_username = username
+                        counter = 1
+                        while User.query.filter_by(username=username).first():
+                            username = f"{base_username}{counter}"
+                            counter += 1
+                        
+                        # Check if this is an admin email domain
+                        admin_domains = current_app.config.get('ADMIN_EMAIL_DOMAINS', ['admin.com'])
+                        is_admin = any(microsoft_email.lower().endswith(f'@{domain}') for domain in admin_domains)
+                        
+                        # Create new user
+                        user_service = UserService()
+                        user = user_service.create_user(
+                            username=username,
+                            full_name=display_name or username,
+                            email=microsoft_email.lower(),
+                            password=None,  # No password for OAuth users
+                            microsoft_account_email=microsoft_email,
+                            is_admin=is_admin,
+                            auto_approve=True  # Auto-approve Microsoft OAuth users
+                        )
+                        
+                        try:
+                            # Store tokens
+                            token_record = MicrosoftToken(
+                                user_id=user.id,
+                                access_token=token_result['access_token'],
+                                refresh_token=token_result.get('refresh_token'),
+                                token_expires_at=expires_at,
+                                scope=' '.join(microsoft_service.scopes)
+                            )
+                            db.session.add(token_record)
+                            
+                            # Update user settings to use real data (settings already created by user_service)
+                            if user.settings:
+                                user.settings.update_setting('use_test_data', False)
+                            
+                            db.session.commit()
+                            
+                            # Log the user in
+                            login_user(user, remember=True)
+                            flash(f'Welcome {display_name}! Your account has been created successfully.', 'success')
+                            
+                            # Redirect based on role
+                            if user.is_admin:
+                                return redirect(url_for('admin.dashboard'))
+                            else:
+                                return redirect(url_for('main.index'))
+                                
+                        except Exception as e:
+                            # Rollback user creation if token storage fails
+                            db.session.rollback()
+                            # Try to clean up the created user
+                            if user and user.id:
+                                User.query.filter_by(id=user.id).delete()
+                                db.session.commit()
+                            raise e
+                            
+                    except ValueError as e:
+                        # Handle user creation errors (duplicate username/email)
+                        current_app.logger.error(f'OAuth registration error: {str(e)}')
+                        flash('Registration failed. Please try again or contact support.', 'danger')
                         return redirect(url_for('auth.login'))
-                    
-                    # Create username from email
-                    username = microsoft_email.split('@')[0].lower()
-                    # Ensure username is unique
-                    base_username = username
-                    counter = 1
-                    while User.query.filter_by(username=username).first():
-                        username = f"{base_username}{counter}"
-                        counter += 1
-                    
-                    # Check if this is an admin email domain
-                    # You can customize this logic based on your requirements
-                    admin_domains = current_app.config.get('ADMIN_EMAIL_DOMAINS', ['admin.com'])
-                    is_admin = any(microsoft_email.lower().endswith(f'@{domain}') for domain in admin_domains)
-                    
-                    # Create new user
-                    user_service = UserService()
-                    user = user_service.create_user(
-                        username=username,
-                        full_name=display_name or username,
-                        email=microsoft_email.lower(),
-                        password=None,  # No password for OAuth users
-                        microsoft_account_email=microsoft_email,
-                        is_admin=is_admin,
-                        auto_approve=True  # Auto-approve Microsoft OAuth users
-                    )
-                    
-                    # Store tokens
-                    token_record = MicrosoftToken(
-                        user_id=user.id,
-                        access_token=token_result['access_token'],
-                        refresh_token=token_result.get('refresh_token'),
-                        token_expires_at=expires_at,
-                        scope=' '.join(microsoft_service.scopes)
-                    )
-                    db.session.add(token_record)
-                    
-                    # Create user settings
-                    settings = UserSettings(user_id=user.id)
-                    settings.update_setting('use_test_data', False)  # Use real data for OAuth users
-                    db.session.add(settings)
-                    db.session.commit()
-                    
-                    # Log the user in
-                    login_user(user, remember=True)
-                    flash(f'Welcome {display_name}! Your account has been created successfully.', 'success')
-                    
-                    # Redirect based on role
-                    if user.is_admin:
-                        return redirect(url_for('admin.dashboard'))
-                    else:
-                        return redirect(url_for('main.index'))
+                    except Exception as e:
+                        # Handle any other errors
+                        db.session.rollback()
+                        current_app.logger.error(f'Unexpected OAuth registration error: {str(e)}')
+                        flash('An unexpected error occurred. Please try again later.', 'danger')
+                        return redirect(url_for('auth.login'))
                 
                 elif auth_type == 'link' and linking_user_id:
                     # Handle account linking flow

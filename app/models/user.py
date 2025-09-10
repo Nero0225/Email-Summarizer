@@ -50,7 +50,7 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(64), unique=True, nullable=False, index=True)
     email = db.Column(db.String(128), unique=True, nullable=False, index=True)
     full_name = db.Column(db.String(128), nullable=False)
-    password_hash = db.Column(db.String(256), nullable=False)
+    password_hash = db.Column(db.String(256), nullable=True)  # Nullable for OAuth users
     
     # Status and role
     status = db.Column(Enum(UserStatus), default=UserStatus.PENDING, nullable=False)
