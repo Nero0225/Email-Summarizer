@@ -1,0 +1,54 @@
+# Core Flask Framework
+Flask
+Flask-CORS
+Flask-Session
+Flask-Login
+Flask-SQLAlchemy
+Flask-Migrate
+Flask-WTF
+
+# Database
+SQLAlchemy
+alembic
+
+# Microsoft Graph API Integration
+msal
+azure-identity
+requests
+
+# AI Processing
+openai
+
+# Forms and Validation
+WTForms
+email-validator
+
+# Security
+werkzeug
+python-dotenv
+cryptography
+
+# Utilities
+pytz
+python-dateutil
+regex
+
+# Development Tools (optional)
+pytest
+pytest-cov
+pytest-flask
+black
+flake8
+mypy
+
+# Production Server
+gunicorn
+gevent
+
+# Monitoring and Logging (optional)
+# flask-monitoring-dashboard (removed - package not available)
+python-json-logger
+
+# API Documentation (optional)
+flasgger
+marshmallow

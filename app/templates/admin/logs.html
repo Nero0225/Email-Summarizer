@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Application Logs{% endblock %}
+
+{% block content %}
+<div class="admin-logs">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>
+            <i class="fas fa-file-alt"></i> Application Logs
+        </h1>
+        <div>
+            <form method="GET" class="d-inline me-2">
+                <select name="lines" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="50" {% if lines == 50 %}selected{% endif %}>Last 50 lines</option>
+                    <option value="100" {% if lines == 100 %}selected{% endif %}>Last 100 lines</option>
+                    <option value="200" {% if lines == 200 %}selected{% endif %}>Last 200 lines</option>
+                    <option value="500" {% if lines == 500 %}selected{% endif %}>Last 500 lines</option>
+                </select>
+            </form>
+            <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Back to Admin
+            </a>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-body">
+            <pre class="log-viewer"><code>{{ logs }}</code></pre>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .log-viewer {
+        background-color: #1e1e1e;
+        color: #d4d4d4;
+        padding: 1rem;
+        border-radius: 4px;
+        max-height: 70vh;
+        overflow-y: auto;
+        font-size: 0.875rem;
+        line-height: 1.5;
+    }
+    
+    .log-viewer::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .log-viewer::-webkit-scrollbar-track {
+        background: #2e2e2e;
+    }
+    
+    .log-viewer::-webkit-scrollbar-thumb {
+        background: #555;
+        border-radius: 4px;
+    }
+    
+    .log-viewer::-webkit-scrollbar-thumb:hover {
+        background: #777;
+    }
+    
+    /* Syntax highlighting for logs */
+    .log-viewer code {
+        display: block;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+</style>
+{% endblock %}

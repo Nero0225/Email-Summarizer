@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block title %}User Details - {{ user.username }}{% endblock %}
+
+{% block content %}
+<div class="user-detail">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>
+            <i class="fas fa-user"></i> {{ user.full_name }}
+        </h1>
+        <a href="{{ url_for('admin.users') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Users
+        </a>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- User Information -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0">User Information</h4>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-3">Username:</dt>
+                        <dd class="col-sm-9">{{ user.username }}</dd>
+                        
+                        <dt class="col-sm-3">Email:</dt>
+                        <dd class="col-sm-9">{{ user.email }}</dd>
+                        
+                        <dt class="col-sm-3">Full Name:</dt>
+                        <dd class="col-sm-9">{{ user.full_name }}</dd>
+                        
+                        <dt class="col-sm-3">Status:</dt>
+                        <dd class="col-sm-9">
+                            <span class="badge bg-{{ {
+                                'approved': 'success',
+                                'pending': 'warning',
+                                'rejected': 'danger',
+                                'suspended': 'secondary'
+                            }[user.status.value] }}">
+                                {{ user.status.value|title }}
+                            </span>
+                        </dd>
+                        
+                        <dt class="col-sm-3">Role:</dt>
+                        <dd class="col-sm-9">
+                            <span class="badge bg-{{ 'danger' if user.is_admin else 'primary' }}">
+                                {{ user.role.value|title }}
+                            </span>
+                        </dd>
+                        
+                        <dt class="col-sm-3">Microsoft Account:</dt>
+                        <dd class="col-sm-9">
+                            {% if user.has_microsoft_linked %}
+                                <span class="text-success">
+                                    <i class="fas fa-check-circle"></i> {{ user.microsoft_account_email }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted">Not linked</span>
+                            {% endif %}
+                        </dd>
+                        
+                        <dt class="col-sm-3">Created:</dt>
+                        <dd class="col-sm-9">{{ user.created_at|datetime_format('%B %d, %Y at %I:%M %p') }}</dd>
+                        
+                        <dt class="col-sm-3">Last Login:</dt>
+                        <dd class="col-sm-9">
+                            {% if user.last_login %}
+                                {{ user.last_login|datetime_format('%B %d, %Y at %I:%M %p') }}
+                            {% else %}
+                                Never
+                            {% endif %}
+                        </dd>
+                        
+                        {% if user.approved_at %}
+                        <dt class="col-sm-3">Approved:</dt>
+                        <dd class="col-sm-9">
+                            {{ user.approved_at|datetime_format('%B %d, %Y') }}
+                            {% if user.approved_by %}
+                                by {{ user.approved_by.username }}
+                            {% endif %}
+                        </dd>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+            
+            <!-- Usage Statistics -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0">Usage Statistics</h4>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-3">Total Digests:</dt>
+                        <dd class="col-sm-9">{{ digests|length }}</dd>
+                        
+                        {% if usage_stats %}
+                        <dt class="col-sm-3">Days Active:</dt>
+                        <dd class="col-sm-9">{{ usage_stats.days_used or 0 }}</dd>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+            
+            <!-- Recent Digests -->
+            {% if digests %}
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Recent Digests</h4>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Generated</th>
+                                    <th>Emails</th>
+                                    <th>Meetings</th>
+                                    <th>Source</th>
+                                    <th>Processing Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for digest in digests %}
+                                <tr>
+                                    <td>{{ digest.generated_at|datetime_format('%b %d, %Y %I:%M %p') }}</td>
+                                    <td>{{ digest.email_count }}</td>
+                                    <td>{{ digest.meeting_count }}</td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ digest.data_source }}</span>
+                                    </td>
+                                    <td>
+                                        {% if digest.processing_time %}
+                                            {{ "%.2f"|format(digest.processing_time) }}s
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="col-lg-4">
+            <!-- Admin Actions -->
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Admin Actions</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" class="d-grid gap-2">
+                        <input type="hidden" name="user_id" value="{{ user.id }}">
+                        
+                        {% if user.status == UserStatus.PENDING %}
+                            <button type="submit" 
+                                    formaction="{{ url_for('admin.approve_user', user_id=user.id) }}"
+                                    class="btn btn-success">
+                                <i class="fas fa-check"></i> Approve User
+                            </button>
+                            <button type="submit" 
+                                    formaction="{{ url_for('admin.reject_user', user_id=user.id) }}"
+                                    class="btn btn-danger">
+                                <i class="fas fa-times"></i> Reject User
+                            </button>
+                        {% elif user.status == UserStatus.APPROVED %}
+                            {% if user.id != current_user.id %}
+                                <button type="submit" 
+                                        formaction="{{ url_for('admin.suspend_user', user_id=user.id) }}"
+                                        class="btn btn-warning"
+                                        onclick="return confirm('Suspend this user?')">
+                                    <i class="fas fa-ban"></i> Suspend User
+                                </button>
+                                
+                                {% if not user.is_admin %}
+                                    <button type="submit" 
+                                            formaction="{{ url_for('admin.make_admin', user_id=user.id) }}"
+                                            class="btn btn-danger"
+                                            onclick="return confirm('Make this user an admin?')">
+                                        <i class="fas fa-user-shield"></i> Make Admin
+                                    </button>
+                                {% else %}
+                                    <button type="submit" 
+                                            formaction="{{ url_for('admin.remove_admin', user_id=user.id) }}"
+                                            class="btn btn-secondary"
+                                            onclick="return confirm('Remove admin privileges?')">
+                                        <i class="fas fa-user"></i> Remove Admin
+                                    </button>
+                                {% endif %}
+                            {% else %}
+                                <div class="alert alert-info mb-0">
+                                    <i class="fas fa-info-circle"></i>
+                                    You cannot modify your own account
+                                </div>
+                            {% endif %}
+                        {% elif user.status == UserStatus.SUSPENDED %}
+                            <button type="submit" 
+                                    formaction="{{ url_for('admin.activate_user', user_id=user.id) }}"
+                                    class="btn btn-success">
+                                <i class="fas fa-user-check"></i> Reactivate User
+                            </button>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}About{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="text-center mb-5">
+            <h1 class="display-4">Email Summarizer</h1>
+            <p class="lead">AI-Powered Daily Digest for Microsoft 365</p>
+            <p class="text-muted">Version {{ version }}</p>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-body">
+                <h3>About This Application</h3>
+                <p>
+                    Email Summarizer is an intelligent daily digest tool that helps you stay on top of your 
+                    email and calendar without the overwhelm. Using advanced AI technology, it analyzes your 
+                    Microsoft 365 emails and calendar to provide actionable insights.
+                </p>
+                
+                <h4 class="mt-4">Key Features</h4>
+                <div class="row mt-3">
+                    <div class="col-md-6 mb-3">
+                        <div class="feature-card">
+                            <i class="fas fa-brain fa-2x text-primary mb-2"></i>
+                            <h5>AI-Powered Analysis</h5>
+                            <p>Intelligent email classification using the 4D framework</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="feature-card">
+                            <i class="fas fa-calendar-check fa-2x text-success mb-2"></i>
+                            <h5>Calendar Integration</h5>
+                            <p>Complete view of meetings with focus time calculation</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="feature-card">
+                            <i class="fas fa-user-shield fa-2x text-info mb-2"></i>
+                            <h5>Privacy First</h5>
+                            <p>Optional PII redaction to protect sensitive information</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="feature-card">
+                            <i class="fas fa-hourglass-half fa-2x text-warning mb-2"></i>
+                            <h5>Healthy Habits</h5>
+                            <p>Once-daily digest to prevent email addiction</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <h4 class="mt-4">Technology Stack</h4>
+                <p>Built with modern, reliable technologies:</p>
+                <ul>
+                    <li><strong>Backend:</strong> Flask (Python)</li>
+                    <li><strong>AI:</strong> OpenAI GPT</li>
+                    <li><strong>Integration:</strong> Microsoft Graph API</li>
+                    <li><strong>Database:</strong> SQLAlchemy with SQLite/PostgreSQL</li>
+                    <li><strong>Frontend:</strong> Bootstrap 5</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-body text-center">
+                <h4>Open Source</h4>
+                <p>
+                    This project is open source and available on GitHub. 
+                    Contributions and feedback are welcome!
+                </p>
+                <a href="https://github.com/yourusername/email-summarizer" 
+                   class="btn btn-outline-primary" 
+                   target="_blank">
+                    <i class="fab fa-github"></i> View on GitHub
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .feature-card {
+        text-align: center;
+        padding: 1.5rem;
+        height: 100%;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+</style>
+{% endblock %}

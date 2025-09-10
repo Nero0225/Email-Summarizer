@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}System Configuration{% endblock %}
+
+{% block content %}
+<div class="admin-system">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>
+            <i class="fas fa-cogs"></i> System Configuration
+        </h1>
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Admin
+        </a>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-6">
+            <!-- Configuration Status -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0">Configuration Status</h4>
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <tbody>
+                            <tr>
+                                <td>Azure/Microsoft API</td>
+                                <td>
+                                    {% if config_status.azure_configured %}
+                                        <span class="badge bg-success">Configured</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Not Configured</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>OpenAI API</td>
+                                <td>
+                                    {% if config_status.openai_configured %}
+                                        <span class="badge bg-success">Configured</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Not Configured</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Email Service</td>
+                                <td>
+                                    {% if config_status.email_configured %}
+                                        <span class="badge bg-success">Configured</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">Not Configured</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Database Type</td>
+                                <td><code>{{ config_status.database_type }}</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Usage Statistics -->
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Usage Statistics</h4>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-6">Total Users:</dt>
+                        <dd class="col-sm-6">{{ usage_stats.total_users }}</dd>
+                        
+                        <dt class="col-sm-6">Active Users Today:</dt>
+                        <dd class="col-sm-6">{{ usage_stats.active_users_today }}</dd>
+                        
+                        <dt class="col-sm-6">Digests Generated Today:</dt>
+                        <dd class="col-sm-6">{{ usage_stats.digests_today }}</dd>
+                        
+                        <dt class="col-sm-6">Failed Digests Today:</dt>
+                        <dd class="col-sm-6">{{ usage_stats.failed_digests_today }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <!-- Performance Metrics -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0">Performance Metrics</h4>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-6">Avg. Processing Time:</dt>
+                        <dd class="col-sm-6">{{ performance_stats.avg_processing_time }} seconds</dd>
+                        
+                        <dt class="col-sm-6">Database Size:</dt>
+                        <dd class="col-sm-6">{{ performance_stats.database_size }}</dd>
+                    </dl>
+                </div>
+            </div>
+            
+            <!-- System Information -->
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">System Information</h4>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-4">Environment:</dt>
+                        <dd class="col-sm-8"><code>{{ config.ENV or 'production' }}</code></dd>
+                        
+                        <dt class="col-sm-4">Debug Mode:</dt>
+                        <dd class="col-sm-8">
+                            {% if config.DEBUG %}
+                                <span class="badge bg-warning">Enabled</span>
+                            {% else %}
+                                <span class="badge bg-success">Disabled</span>
+                            {% endif %}
+                        </dd>
+                        
+                        <dt class="col-sm-4">App Version:</dt>
+                        <dd class="col-sm-8">{{ config.APP_VERSION or '1.0.0' }}</dd>
+                        
+                        <dt class="col-sm-4">Daily Limit:</dt>
+                        <dd class="col-sm-8">{{ config.DAILY_DIGEST_LIMIT or 1 }} digest(s) per day</dd>
+                        
+                        <dt class="col-sm-4">Email Limit:</dt>
+                        <dd class="col-sm-8">{{ config.MAX_EMAILS_PER_DIGEST or 200 }} emails</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
