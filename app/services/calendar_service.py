@@ -158,7 +158,9 @@ class CalendarService:
             'required_attendee_count': len(required_attendees),
             'show_as': event.get('showAs', 'busy'),
             'is_all_day': event.get('isAllDay', False),
-            'importance': event.get('importance', 'normal')
+            'importance': event.get('importance', 'normal'),
+            'start_hour': start_dt.hour,
+            'end_hour': end_dt.hour
         }
     
     def _parse_datetime(self, datetime_str: str) -> datetime:

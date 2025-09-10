@@ -100,7 +100,24 @@ def view_digest(digest_id):
         flash('You do not have permission to view this digest.', 'danger')
         return redirect(url_for('main.index'))
     
-    return render_template('main/digest.html', digest=digest)
+    # Extract digest data if it exists
+    digest_data = digest.digest_data or {}
+    
+    # Check if we have the formatted HTML version
+    if 'sections' in digest_data and 'metadata' in digest_data:
+        # We have structured data, let's format it
+        from app.services.digest_generator import StructuredDigestGenerator
+        generator = StructuredDigestGenerator()
+        digest.digest_data = generator.format_digest_html(digest_data)
+    
+    # Pass both the digest record and extracted data
+    context = {
+        'digest': digest,
+        'digest_data': digest_data,
+        'current_user': current_user
+    }
+    
+    return render_template('main/digest.html', **context)
 
 
 @main_bp.route('/settings', methods=['GET', 'POST'])

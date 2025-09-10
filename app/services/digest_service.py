@@ -95,12 +95,19 @@ class DigestService:
             # Calculate processing time
             processing_time = time.time() - start_time
             
+            # Enrich digest data for the new template
+            enriched_digest_data = self._enrich_digest_data(
+                digest_data, 
+                processed_emails, 
+                processed_calendar
+            )
+            
             # Save digest record
             digest_record = DigestRecord(
                 user_id=user_id,
                 email_count=digest_data['metadata']['total_emails'],
                 meeting_count=digest_data['metadata']['total_meetings'],
-                digest_data=digest_data,
+                digest_data=enriched_digest_data,
                 data_source=data_source,
                 processing_time=processing_time
             )
@@ -339,3 +346,198 @@ class DigestService:
                 1
             )
         }
+    
+    def _enrich_digest_data(self, digest_data: Dict[str, Any], 
+                          conversations: Dict[str, Any], 
+                          calendar_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Enrich digest data with additional fields for the new template
+        
+        Args:
+            digest_data: Base digest data from generator
+            conversations: Processed email conversations
+            calendar_data: Processed calendar data
+            
+        Returns:
+            Enriched digest data
+        """
+        # Extract actions by type
+        action_by_type = digest_data.get('sections', {}).get('actions', {}).get('by_category', {})
+        
+        # Calculate focus time blocks
+        focus_blocks = self._calculate_focus_blocks(calendar_data)
+        
+        # Extract top senders and topics
+        top_senders = self._extract_top_senders(conversations)
+        key_topics = self._extract_key_topics(conversations)
+        
+        # Add enriched data
+        enriched_data = {
+            **digest_data,
+            'focus_time_hours': calendar_data.get('focus_time_hours', 0),
+            'focus_blocks': len(focus_blocks),
+            'longest_block': max([block['hours'] for block in focus_blocks], default=0),
+            'focus_blocks_data': focus_blocks[:3],  # Top 3 blocks
+            'do_tasks': self._format_tasks(action_by_type.get('Do', [])),
+            'delegate_tasks': self._format_tasks(action_by_type.get('Delegate', [])),
+            'defer_tasks': self._format_tasks(action_by_type.get('Defer', [])),
+            'delete_tasks': self._format_tasks(action_by_type.get('Delete', [])),
+            'meetings': self._format_meetings(calendar_data.get('meetings', [])),
+            'top_senders': top_senders[:5],
+            'key_topics': key_topics[:10],
+            'action_items': len(action_by_type.get('Do', [])) + len(action_by_type.get('Delegate', [])),
+            'replies_needed': sum(1 for conv in conversations.values() if self._needs_reply(conv)),
+            'high_priority': sum(1 for conv in conversations.values() if conv.get('importance') == 'high'),
+            'attachments': sum(1 for conv in conversations.values() if conv.get('has_attachments', False))
+        }
+        
+        return enriched_data
+    
+    def _calculate_focus_blocks(self, calendar_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Calculate focus time blocks from calendar data"""
+        meetings = calendar_data.get('meetings', [])
+        if not meetings:
+            # Full day available
+            return [{
+                'start': '9:00 AM',
+                'end': '5:00 PM',
+                'hours': 8,
+                'type': 'full_day'
+            }]
+        
+        focus_blocks = []
+        work_start = 9  # 9 AM
+        work_end = 17   # 5 PM
+        
+        # Sort meetings by start time
+        sorted_meetings = sorted(meetings, key=lambda m: m.get('start_hour', 0))
+        
+        # Find gaps between meetings
+        last_end = work_start
+        for meeting in sorted_meetings:
+            start_hour = meeting.get('start_hour', 0)
+            if start_hour > last_end:
+                gap_hours = start_hour - last_end
+                if gap_hours >= 1:  # At least 1 hour
+                    focus_blocks.append({
+                        'start': f"{last_end}:00",
+                        'end': f"{start_hour}:00",
+                        'hours': gap_hours,
+                        'type': 'between_meetings'
+                    })
+            last_end = meeting.get('end_hour', start_hour + 1)
+        
+        # Check for time after last meeting
+        if last_end < work_end:
+            focus_blocks.append({
+                'start': f"{last_end}:00",
+                'end': f"{work_end}:00",
+                'hours': work_end - last_end,
+                'type': 'end_of_day'
+            })
+        
+        # Sort by duration
+        focus_blocks.sort(key=lambda b: b['hours'], reverse=True)
+        
+        return focus_blocks
+    
+    def _extract_top_senders(self, conversations: Dict[str, Any]) -> List[Dict[str, str]]:
+        """Extract top email senders"""
+        sender_counts = {}
+        
+        for conv in conversations.values():
+            sender = conv.get('latest_sender', {})
+            if isinstance(sender, dict):
+                sender_name = sender.get('name', 'Unknown')
+                sender_email = sender.get('address', '')
+            else:
+                sender_name = str(sender)
+                sender_email = ''
+            
+            key = f"{sender_name}|{sender_email}"
+            sender_counts[key] = sender_counts.get(key, 0) + conv.get('email_count', 1)
+        
+        # Sort by count and format
+        top_senders = []
+        for sender_key, count in sorted(sender_counts.items(), key=lambda x: x[1], reverse=True):
+            name, email = sender_key.split('|')
+            top_senders.append({
+                'name': name,
+                'email': email,
+                'count': count
+            })
+        
+        return top_senders
+    
+    def _extract_key_topics(self, conversations: Dict[str, Any]) -> List[str]:
+        """Extract key topics from email subjects and content"""
+        topics = []
+        topic_words = {}
+        
+        # Common words to exclude
+        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 
+                     'of', 'with', 'by', 'from', 'about', 're:', 'fw:', 'fwd:', 'subject:'}
+        
+        for conv in conversations.values():
+            subject = conv.get('subject', '').lower()
+            # Extract meaningful words
+            words = [w for w in subject.split() if len(w) > 3 and w not in stop_words]
+            
+            for word in words:
+                topic_words[word] = topic_words.get(word, 0) + 1
+        
+        # Get most common topics
+        sorted_topics = sorted(topic_words.items(), key=lambda x: x[1], reverse=True)
+        
+        # Format as title case
+        for topic, count in sorted_topics[:20]:
+            if count > 1:  # Only include topics that appear more than once
+                topics.append(topic.title())
+        
+        return topics
+    
+    def _needs_reply(self, conversation: Dict[str, Any]) -> bool:
+        """Check if conversation needs a reply"""
+        # Check if it's classified as "Do" with high confidence
+        classification = conversation.get('classification', {})
+        if classification.get('action') == 'Do' and classification.get('confidence', 0) > 0.6:
+            return True
+        
+        # Check for question marks in subject
+        if '?' in conversation.get('subject', ''):
+            return True
+        
+        # Check if latest email is from someone else (not the user)
+        # This would require knowing the user's email, which we don't have here
+        # So we'll use a simple heuristic
+        return conversation.get('email_count', 0) % 2 == 1  # Odd number suggests awaiting reply
+    
+    def _format_tasks(self, tasks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Format tasks for the template"""
+        formatted_tasks = []
+        for task in tasks[:10]:  # Limit to 10
+            formatted_tasks.append({
+                'subject': task.get('subject', 'No Subject'),
+                'sender': task.get('sender', 'Unknown'),
+                'confidence': task.get('confidence', 0),
+                'reason': task.get('reason', '')
+            })
+        return formatted_tasks
+    
+    def _format_meetings(self, meetings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Format meetings for the template"""
+        formatted_meetings = []
+        for meeting in meetings:
+            formatted_meetings.append({
+                'subject': meeting.get('subject', 'No Subject'),
+                'start_time': meeting.get('time', '').split(' - ')[0] if ' - ' in meeting.get('time', '') else meeting.get('time', ''),
+                'end_time': meeting.get('time', '').split(' - ')[1] if ' - ' in meeting.get('time', '') else '',
+                'duration': meeting.get('duration_hours', 0),
+                'location': meeting.get('location', ''),
+                'organizer': meeting.get('organizer', 'Unknown'),
+                'attendees': meeting.get('attendees', []),
+                'attendee_count': meeting.get('attendee_count', 0),
+                'is_online': meeting.get('is_online', False),
+                'agenda': meeting.get('agenda', '')
+            })
+        return formatted_meetings

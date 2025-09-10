@@ -363,22 +363,22 @@ class StructuredDigestGenerator:
         do_items = actions_by_type.get('Do', [])
         for item in do_items[:3]:
             if item['confidence'] > 0.6:
-                recommendations.append(f"🔴 Do (Today): {item['subject']}")
+                recommendations.append(f'<i class="fas fa-circle text-danger"></i> Do (Today): {item["subject"]}')
         
         # DELEGATE recommendations
         delegate_items = actions_by_type.get('Delegate', [])
         for item in delegate_items[:2]:
-            recommendations.append(f"🟡 Delegate: {item['subject']} → Assign to appropriate team member")
+            recommendations.append(f'<i class="fas fa-circle text-warning"></i> Delegate: {item["subject"]} → Assign to appropriate team member')
         
         # DEFER recommendations
         defer_items = actions_by_type.get('Defer', [])
         for item in defer_items[:2]:
-            recommendations.append(f"🟢 Defer: Schedule time next week for {item['subject']}")
+            recommendations.append(f'<i class="fas fa-circle text-success"></i> Defer: Schedule time next week for {item["subject"]}')
         
         # DELETE summary
         delete_count = len(actions_by_type.get('Delete', []))
         if delete_count > 5:
-            recommendations.append(f"🗑️ Delete: Archive {delete_count} informational/promotional emails")
+            recommendations.append(f'<i class="fas fa-trash-alt text-secondary"></i> Delete: Archive {delete_count} informational/promotional emails')
         
         # Decision required items
         decision_items = [
@@ -386,7 +386,7 @@ class StructuredDigestGenerator:
             if 'decision' in item.get('subject', '').lower() or 'decide' in item.get('reason', '').lower()
         ]
         for item in decision_items[:2]:
-            recommendations.append(f"⚡ Decision Required: {item['subject']}")
+            recommendations.append(f'<i class="fas fa-bolt text-warning"></i> Decision Required: {item["subject"]}')
         
         return recommendations
     
@@ -426,7 +426,7 @@ class StructuredDigestGenerator:
         """Format snapshot section as HTML"""
         return f'''
         <section class="snapshot">
-            <h2>📊 Snapshot</h2>
+            <h2><i class="fas fa-chart-bar"></i> Snapshot</h2>
             <div class="snapshot-content">
                 {snapshot['summary_text'].replace(chr(10), '<br>')}
             </div>
@@ -444,18 +444,18 @@ class StructuredDigestGenerator:
             <div class="calendar-event">
                 <h4>{meeting['number']}. {meeting['time']} – {meeting['subject']}{online_badge}</h4>
                 <p class="event-details">
-                    <span>👤 Organizer: {meeting['organizer']}</span>
-                    <span>⏱️ Duration: {meeting['duration']}</span>
-                    <span>👥 Attendees: {meeting['attendees']}</span>
+                    <span><i class="fas fa-user"></i> Organizer: {meeting['organizer']}</span>
+                    <span><i class="fas fa-clock"></i> Duration: {meeting['duration']}</span>
+                    <span><i class="fas fa-users"></i> Attendees: {meeting['attendees']}</span>
                 </p>
-                <p class="event-agenda">📝 {meeting['agenda']}</p>
-                {f'<p class="event-location">📍 {location}</p>' if location else ''}
+                <p class="event-agenda"><i class="fas fa-file-alt"></i> {meeting['agenda']}</p>
+                {f'<p class="event-location"><i class="fas fa-map-marker-alt"></i> {location}</p>' if location else ''}
             </div>
             ''')
         
         return f'''
         <section class="calendar-breakdown">
-            <h2>📅 Today\'s Calendar</h2>
+            <h2><i class="fas fa-calendar-day"></i> Today\'s Calendar</h2>
             <div class="calendar-summary">
                 <p>{calendar['summary']}</p>
                 <p class="focus-time">{calendar['focus_summary']}</p>
@@ -474,7 +474,7 @@ class StructuredDigestGenerator:
             if topic['importance'] == 'high':
                 importance_badge = ' <span class="badge high-importance">High Priority</span>'
             
-            attachments_badge = ' 📎' if topic['has_attachments'] else ''
+            attachments_badge = ' <i class="fas fa-paperclip"></i>' if topic['has_attachments'] else ''
             
             topics_html.append(f'''
             <div class="email-topic">
@@ -490,7 +490,7 @@ class StructuredDigestGenerator:
         
         return f'''
         <section class="email-topics">
-            <h2>📧 Email Summary</h2>
+            <h2><i class="fas fa-envelope"></i> Email Summary</h2>
             <p class="section-meta">Showing {len(topics_data['topics'])} of {topics_data['total_conversations']} conversations</p>
             <div class="topics-list">
                 {''.join(topics_html)}
@@ -504,7 +504,7 @@ class StructuredDigestGenerator:
         
         return f'''
         <section class="recommended-actions">
-            <h2>⚡ Recommended Actions</h2>
+            <h2><i class="fas fa-bolt"></i> Recommended Actions</h2>
             <p class="action-summary">Total actionable items: {actions_data['total_actions']}</p>
             <ul class="action-list">
                 {recommendations_html}
@@ -519,10 +519,10 @@ class StructuredDigestGenerator:
         
         actions_html = []
         for action in quick_creates['suggested_actions']:
-            icon = {'task': '📝', 'delegation': '👥', 'calendar': '📅'}.get(action['type'], '📌')
+            icon_class = {'task': 'fa-edit', 'delegation': 'fa-users', 'calendar': 'fa-calendar'}.get(action['type'], 'fa-thumbtack')
             actions_html.append(f'''
             <div class="quick-action {action['type']}">
-                <span class="action-icon">{icon}</span>
+                <span class="action-icon"><i class="fas {icon_class}"></i></span>
                 <span class="action-text">{action['description']}</span>
                 <span class="action-priority priority-{action['priority']}">{action['priority'].title()}</span>
             </div>
@@ -530,7 +530,7 @@ class StructuredDigestGenerator:
         
         return f'''
         <section class="quick-creates">
-            <h2>⚡ Quick Actions</h2>
+            <h2><i class="fas fa-bolt"></i> Quick Actions</h2>
             <p class="section-note">{quick_creates['note']}</p>
             <div class="actions-grid">
                 {''.join(actions_html)}
