@@ -41,6 +41,14 @@
                     <button class="btn btn-outline-secondary" onclick="shareDigest()">
                         <i class="fas fa-share-alt"></i> Share
                     </button>
+                    <form method="POST" action="{{ url_for('main.delete_digest', digest_id=digest.id) }}" 
+                          style="display: inline;"
+                          onsubmit="return confirm('Are you sure you want to delete this digest? This action cannot be undone.');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <button type="submit" class="btn btn-outline-danger">
+                            <i class="fas fa-trash-alt"></i> Delete
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>

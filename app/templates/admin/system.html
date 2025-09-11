@@ -127,8 +127,14 @@
                         <dt class="col-sm-4">Daily Limit:</dt>
                         <dd class="col-sm-8">Unlimited (no daily limit)</dd>
                         
-                        <dt class="col-sm-4">Email Limit:</dt>
-                        <dd class="col-sm-8">{{ config.MAX_EMAILS_PER_DIGEST or 200 }} emails</dd>
+                        <dt class="col-sm-4">Email Cap:</dt>
+                        <dd class="col-sm-8">{{ config.MAX_EMAILS_PER_DIGEST }} emails per digest</dd>
+                        
+                        <dt class="col-sm-4">Email Source:</dt>
+                        <dd class="col-sm-8">Inbox only (excludes Junk/Clutter)</dd>
+                        
+                        <dt class="col-sm-4">Threading:</dt>
+                        <dd class="col-sm-8">ConversationId grouping enabled</dd>
                     </dl>
                 </div>
             </div>

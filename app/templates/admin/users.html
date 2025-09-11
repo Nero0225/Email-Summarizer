@@ -86,10 +86,46 @@
                             </td>
                             <td>{{ user.created_at|datetime_format('%b %d, %Y') }}</td>
                             <td>
-                                <a href="{{ url_for('admin.user_detail', user_id=user.id) }}" 
-                                   class="btn btn-sm btn-outline-primary">
-                                    <i class="fas fa-eye"></i>
-                                </a>
+                                <div class="btn-group" role="group">
+                                    <a href="{{ url_for('admin.user_detail', user_id=user.id) }}" 
+                                       class="btn btn-sm btn-outline-primary"
+                                       title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    
+                                    {% if user.id != current_user.id %}
+                                        {% if user.status == UserStatus.PENDING %}
+                                            <form method="POST" action="{{ url_for('admin.approve_user', user_id=user.id) }}" style="display: inline;">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                <button type="submit" class="btn btn-sm btn-outline-success" title="Approve">
+                                                    <i class="fas fa-check"></i>
+                                                </button>
+                                            </form>
+                                            <form method="POST" action="{{ url_for('admin.reject_user', user_id=user.id) }}" style="display: inline;">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Reject">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </form>
+                                        {% elif user.status == UserStatus.APPROVED %}
+                                            <form method="POST" action="{{ url_for('admin.suspend_user', user_id=user.id) }}" style="display: inline;">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                <button type="submit" class="btn btn-sm btn-outline-warning" 
+                                                        title="Suspend"
+                                                        onclick="return confirm('Suspend {{ user.username }}?')">
+                                                    <i class="fas fa-ban"></i>
+                                                </button>
+                                            </form>
+                                        {% elif user.status == UserStatus.SUSPENDED %}
+                                            <form method="POST" action="{{ url_for('admin.activate_user', user_id=user.id) }}" style="display: inline;">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                <button type="submit" class="btn btn-sm btn-outline-success" title="Reactivate">
+                                                    <i class="fas fa-user-check"></i>
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                    {% endif %}
+                                </div>
                             </td>
                         </tr>
                         {% else %}
@@ -156,4 +192,25 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Fix inline form spacing in action buttons */
+    td form {
+        display: inline-block;
+        margin: 0;
+    }
+    
+    .btn-group form {
+        display: inline-block;
+        margin: 0 2px;
+    }
+    
+    /* Ensure buttons are aligned */
+    .btn-group {
+        display: flex;
+        gap: 4px;
+    }
+</style>
 {% endblock %}

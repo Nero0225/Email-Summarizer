@@ -119,6 +119,43 @@ def view_digest(digest_id):
     return render_template('main/digest.html', **context)
 
 
+@main_bp.route('/digest/<int:digest_id>/delete', methods=['POST'])
+@login_required
+def delete_digest(digest_id):
+    """Delete a specific digest"""
+    digest = DigestRecord.query.get_or_404(digest_id)
+    
+    # Ensure user can only delete their own digests
+    if digest.user_id != current_user.id:
+        flash('You do not have permission to delete this digest.', 'danger')
+        return redirect(url_for('main.index'))
+    
+    try:
+        # Update daily usage count if it's today's digest
+        from datetime import date
+        if digest.generated_at.date() == date.today():
+            daily_usage = DailyUsage.query.filter_by(
+                user_id=current_user.id,
+                usage_date=date.today()
+            ).first()
+            if daily_usage and daily_usage.digest_count > 0:
+                daily_usage.digest_count -= 1
+        
+        # Delete the digest
+        db.session.delete(digest)
+        db.session.commit()
+        
+        flash('Digest deleted successfully.', 'success')
+        current_app.logger.info(f"User {current_user.username} deleted digest {digest_id}")
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error deleting digest {digest_id}: {str(e)}")
+        flash('Error deleting digest. Please try again.', 'danger')
+    
+    return redirect(url_for('main.index'))
+
+
 @main_bp.route('/settings', methods=['GET', 'POST'])
 @login_required
 def settings():

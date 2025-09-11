@@ -179,6 +179,11 @@ class MicrosoftService:
         """
         Fetch user emails according to PRD requirements
         
+        Constraints:
+            - Cap: 200 emails per run
+            - Inclusions: Inbox only (excludes Junk, Clutter/Other folders)
+            - Threading: Grouped by ConversationId
+        
         Args:
             access_token: Valid access token
             days_back: Number of days to look back
@@ -207,11 +212,12 @@ class MicrosoftService:
         start_date_str = start_date.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
         
         # Graph API query parameters per PRD
+        # Filter ensures only Inbox emails (excludes Junk, Clutter, Other folders)
         params = {
             '$filter': f"receivedDateTime ge {start_date_str} and parentFolderId eq 'inbox'",
             '$select': 'id,subject,from,receivedDateTime,bodyPreview,conversationId,isRead,importance,hasAttachments,body',
             '$orderby': 'receivedDateTime desc',
-            '$top': current_app.config.get('MAX_EMAILS_PER_DIGEST', 200)
+            '$top': current_app.config.get('MAX_EMAILS_PER_DIGEST', 200)  # Cap at 200 emails per run
         }
         
         try:

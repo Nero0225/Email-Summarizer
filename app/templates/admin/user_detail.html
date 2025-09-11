@@ -150,12 +150,35 @@
         
         <div class="col-lg-4">
             <!-- Admin Actions -->
-            <div class="card">
+            <div class="card mb-4">
                 <div class="card-header">
                     <h4 class="mb-0">Admin Actions</h4>
                 </div>
                 <div class="card-body">
+                    <!-- Status Change Dropdown -->
+                    {% if user.id != current_user.id %}
+                    <form method="POST" action="{{ url_for('admin.change_user_status', user_id=user.id) }}" class="mb-3">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <label for="statusSelect" class="form-label">Change Status</label>
+                        <div class="input-group">
+                            <select name="status" id="statusSelect" class="form-select">
+                                <option value="">-- Select Status --</option>
+                                <option value="pending" {% if user.status.value == 'pending' %}disabled{% endif %}>Pending</option>
+                                <option value="approved" {% if user.status.value == 'approved' %}disabled{% endif %}>Approved</option>
+                                <option value="rejected" {% if user.status.value == 'rejected' %}disabled{% endif %}>Rejected</option>
+                                <option value="suspended" {% if user.status.value == 'suspended' %}disabled{% endif %}>Suspended</option>
+                            </select>
+                            <button type="submit" class="btn btn-primary" onclick="return confirm('Change user status?')">
+                                <i class="fas fa-save"></i> Apply
+                            </button>
+                        </div>
+                        <small class="text-muted">Current status: {{ user.status.value|title }}</small>
+                    </form>
+                    <hr>
+                    {% endif %}
+                    
                     <form method="POST" class="d-grid gap-2">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <input type="hidden" name="user_id" value="{{ user.id }}">
                         
                         {% if user.status == UserStatus.PENDING %}

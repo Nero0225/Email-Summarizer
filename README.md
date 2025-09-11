@@ -12,6 +12,12 @@ A professional Flask application that generates intelligent daily digests from y
 - **Unlimited Generation**: Generate digests as often as needed throughout the day
 - **Multi-User Support**: Complete user management system with admin panel
 - **Microsoft OAuth Authentication**: Secure registration and login through Microsoft 365 accounts
+- **Digest Management**: Users can delete their own digests with confirmation dialogs
+
+### Email Processing Constraints
+- **Volume Cap**: 200 emails maximum per digest generation
+- **Folder Focus**: Inbox emails only (automatically excludes Junk, Clutter, and Other folders)
+- **Smart Threading**: Groups emails by ConversationId for context-aware summarization
 
 ### Technical Highlights
 - Modern Flask architecture with blueprints and application factory pattern

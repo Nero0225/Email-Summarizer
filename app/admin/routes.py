@@ -98,7 +98,8 @@ def users():
         'pagination': pagination,
         'status_filter': status_filter,
         'search_query': search_query,
-        'statuses': [status.value for status in UserStatus]
+        'statuses': [status.value for status in UserStatus],
+        'UserStatus': UserStatus  # Pass the UserStatus enum to template
     }
     
     return render_template('admin/users.html', **context)
@@ -124,7 +125,8 @@ def user_detail(user_id):
     context = {
         'user': user,
         'digests': digests,
-        'usage_stats': usage_stats
+        'usage_stats': usage_stats,
+        'UserStatus': UserStatus  # Pass the UserStatus enum to template
     }
     
     return render_template('admin/user_detail.html', **context)
@@ -227,6 +229,59 @@ def activate_user(user_id):
         flash('Error activating user. Please try again.', 'danger')
     
     return redirect(url_for('admin.user_detail', user_id=user_id))
+
+
+@admin_bp.route('/users/<int:user_id>/change-status', methods=['POST'])
+@login_required
+@admin_required
+def change_user_status(user_id):
+    """Change user status to any valid status"""
+    user = User.query.get_or_404(user_id)
+    new_status = request.form.get('status')
+    
+    # Validate user can't change their own status
+    if user.id == current_user.id:
+        flash('You cannot change your own account status.', 'danger')
+        return redirect(url_for('admin.user_detail', user_id=user.id))
+    
+    # Validate the new status
+    try:
+        new_status_enum = UserStatus(new_status)
+    except ValueError:
+        flash('Invalid status selected.', 'danger')
+        return redirect(url_for('admin.user_detail', user_id=user.id))
+    
+    # Don't allow changing if status is the same
+    if user.status == new_status_enum:
+        flash(f'User is already {new_status}.', 'info')
+        return redirect(url_for('admin.user_detail', user_id=user.id))
+    
+    try:
+        old_status = user.status.value
+        
+        # Handle special cases for approval
+        if new_status_enum == UserStatus.APPROVED and user.status == UserStatus.PENDING:
+            user.approve(current_user)
+        elif new_status_enum == UserStatus.REJECTED and user.status == UserStatus.PENDING:
+            user.reject(current_user)
+        else:
+            user.status = new_status_enum
+            db.session.commit()
+        
+        flash(
+            f'User {user.username} status changed from {old_status} to {new_status}.', 
+            'success'
+        )
+        current_app.logger.info(
+            f"Admin {current_user.username} changed user {user.username} "
+            f"status from {old_status} to {new_status}"
+        )
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error changing user status: {str(e)}', 'danger')
+        current_app.logger.error(f"Error changing user {user_id} status: {str(e)}")
+    
+    return redirect(url_for('admin.user_detail', user_id=user.id))
 
 
 @admin_bp.route('/users/<int:user_id>/make-admin', methods=['POST'])

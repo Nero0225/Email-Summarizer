@@ -6,6 +6,7 @@ and 4D classification.
 """
 from typing import Dict, List, Any, Tuple
 from collections import defaultdict
+from flask import current_app
 from app.services.framework_4d import Framework4DClassifier, Action4D
 
 
@@ -19,6 +20,11 @@ class EmailService:
         """
         Process emails: group by conversation and classify
         
+        Implements:
+            - ConversationId-based threading
+            - Processing of Inbox-only emails (Junk/Clutter excluded at fetch level)
+            - Handles up to 200 emails (cap enforced at fetch level)
+        
         Args:
             emails: List of email dictionaries from Graph API
             
@@ -27,6 +33,7 @@ class EmailService:
         """
         # Group emails by conversation
         conversations = self._group_by_conversation(emails)
+        current_app.logger.info(f"Grouped {len(emails)} emails into {len(conversations)} conversations")
         
         # Process each conversation
         processed_conversations = {}
