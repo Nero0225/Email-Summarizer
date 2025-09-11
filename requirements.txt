@@ -17,7 +17,7 @@ azure-identity
 requests
 
 # AI Processing
-openai
+openai>=1.0.0
 
 # Forms and Validation
 WTForms

@@ -151,7 +151,7 @@ class UserSettings(db.Model):
     DEFAULT_SETTINGS = {
         'digest_time': '09:00',
         'timezone': 'UTC',
-        'privacy_mode': True,
+        'privacy_mode': False,  # Changed to False so names are not redacted by default
         'working_hours_start': 9,
         'working_hours_end': 17,
         'use_test_data': False,

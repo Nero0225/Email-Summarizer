@@ -98,15 +98,14 @@
                     </p>
                     
                     <button id="generateDigest" 
-                            class="btn digest-button btn-lg"
-                            {% if not can_generate %}disabled{% endif %}>
+                            class="btn digest-button btn-lg">
                         <i class="fas fa-magic"></i> How's My Day?
                     </button>
                     
-                    {% if not can_generate %}
+                    {% if digest_count_today > 0 %}
                         <p class="mt-3 text-muted">
                             <i class="fas fa-info-circle"></i>
-                            You've already generated today's digest. Please try again tomorrow.
+                            You've generated {{ digest_count_today }} digest{% if digest_count_today > 1 %}s{% endif %} today.
                         </p>
                     {% endif %}
                     

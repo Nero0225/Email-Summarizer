@@ -57,31 +57,16 @@ def api_login_required(f):
 
 def check_daily_limit(f):
     """
-    Decorator to check daily digest generation limit
-    Must be used after authentication decorators
+    Decorator to check daily digest generation limit - DEPRECATED
+    Daily limit has been removed - users can generate unlimited digests
+    This decorator is kept for backward compatibility
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated:
             return jsonify({'error': 'Authentication required'}), 401
         
-        # Check daily limit
-        today = date.today()
-        daily_usage = DailyUsage.query.filter_by(
-            user_id=current_user.id,
-            usage_date=today
-        ).first()
-        
-        daily_limit = current_app.config.get('DAILY_DIGEST_LIMIT', 1)
-        
-        if daily_usage and daily_usage.digest_count >= daily_limit:
-            return jsonify({
-                'status': 'error',
-                'error_type': 'daily_limit',
-                'message': "You've already generated today's digest. Please try again tomorrow.",
-                'next_available': 'Tomorrow at midnight'
-            }), 429
-        
+        # Daily limit check removed - users can generate unlimited digests
         return f(*args, **kwargs)
     
     return decorated_function

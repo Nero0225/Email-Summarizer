@@ -363,7 +363,11 @@ class StructuredDigestGenerator:
         do_items = actions_by_type.get('Do', [])
         for item in do_items[:3]:
             if item['confidence'] > 0.6:
-                recommendations.append(f'<i class="fas fa-circle text-danger"></i> Do (Today): {item["subject"]}')
+                rec_text = f'<i class="fas fa-circle text-danger"></i> Do (Today): {item["subject"]}'
+                # Add AI summary if available
+                if item.get('ai_summary') and item['ai_summary'].get('summary'):
+                    rec_text += f'<br><small class="text-muted ms-4">{item["ai_summary"]["summary"][:80]}...</small>'
+                recommendations.append(rec_text)
         
         # DELEGATE recommendations
         delegate_items = actions_by_type.get('Delegate', [])

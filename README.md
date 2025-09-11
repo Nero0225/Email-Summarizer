@@ -8,8 +8,8 @@ A professional Flask application that generates intelligent daily digests from y
 - **Microsoft 365 Integration**: Seamless connection with Outlook email and calendar
 - **AI-Powered Classification**: Uses the 4D Framework (Do, Delegate, Defer, Delete) to categorize emails
 - **Smart Calendar Analysis**: Identifies meeting patterns and calculates available focus time
-- **Privacy Mode**: Built-in PII redaction to protect sensitive information
-- **Once-Daily Generation**: Enforces healthy email habits with single daily digest limit
+- **Privacy Mode**: Optional PII redaction to protect sensitive information when needed
+- **Unlimited Generation**: Generate digests as often as needed throughout the day
 - **Multi-User Support**: Complete user management system with admin panel
 - **Microsoft OAuth Authentication**: Secure registration and login through Microsoft 365 accounts
 
@@ -128,7 +128,7 @@ OPENAI_MODEL=gpt-3.5-turbo
 
 # Application Settings
 MAX_EMAILS_PER_DIGEST=200
-DAILY_DIGEST_LIMIT=1
+# DAILY_DIGEST_LIMIT=1  # Deprecated - no limit
 DEFAULT_WORK_START_HOUR=9
 DEFAULT_WORK_END_HOUR=17
 

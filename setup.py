@@ -63,7 +63,7 @@ ADMIN_DEFAULT_PASSWORD=changeme123
 APP_NAME=Email Summarizer
 APP_VERSION=1.0.0
 MAX_EMAILS_PER_DIGEST=200
-DAILY_DIGEST_LIMIT=1
+# DAILY_DIGEST_LIMIT=1  # Deprecated - no limit
 """
         with open('.env', 'w') as f:
             f.write(env_content)

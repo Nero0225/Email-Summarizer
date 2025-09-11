@@ -26,6 +26,16 @@ class DigestService:
         self.calendar_service = CalendarService()
         self.privacy_service = PrivacyService()
         self.digest_generator = StructuredDigestGenerator()
+        
+        # Initialize OpenAI service if configured
+        try:
+            from app.services.openai_service import OpenAIService
+            self.openai_service = OpenAIService()
+            self.use_openai = bool(current_app.config.get('OPENAI_API_KEY'))
+        except Exception as e:
+            current_app.logger.warning(f"OpenAI service not available: {str(e)}")
+            self.openai_service = None
+            self.use_openai = False
     
     def generate_digest_for_user(self, user_id: int, **options) -> Dict[str, Any]:
         """
@@ -50,13 +60,7 @@ class DigestService:
                     'message': 'User not found'
                 }
             
-            # Check daily limit
-            if not self._can_generate_today(user_id):
-                return {
-                    'status': 'error',
-                    'error_type': 'daily_limit',
-                    'message': "You've already generated today's digest. Please try again tomorrow."
-                }
+            # Note: Daily limit check removed - users can generate multiple digests per day
             
             # Get user settings
             settings = user.settings.to_dict() if user.settings else {}
@@ -72,7 +76,7 @@ class DigestService:
                 }
             
             # Apply privacy redaction if enabled
-            if settings.get('privacy_mode', True):
+            if settings.get('privacy_mode', False):
                 emails_data = self._apply_privacy_redaction(emails_data)
             
             # Process emails and calendar
@@ -84,6 +88,30 @@ class DigestService:
                     settings.get('working_hours_end', 17)
                 )
             )
+            
+            # Apply OpenAI summarization if available and enabled
+            if self.use_openai and self.openai_service:
+                try:
+                    # Determine if private content should be included
+                    include_private = not settings.get('privacy_mode', False)
+                    
+                    # Generate AI-powered email summaries
+                    ai_summaries = self.openai_service.summarize_emails(
+                        processed_emails,
+                        include_private=include_private
+                    )
+                    
+                    # Update processed emails with AI summaries
+                    for conv_id, ai_summary in ai_summaries.items():
+                        if conv_id in processed_emails:
+                            processed_emails[conv_id]['ai_summary'] = ai_summary
+                    
+                    # Generate AI-powered calendar insights
+                    processed_calendar = self.openai_service.summarize_calendar(processed_calendar)
+                    
+                except Exception as e:
+                    current_app.logger.error(f"OpenAI processing error: {str(e)}")
+                    # Continue with regular processing if OpenAI fails
             
             # Generate structured digest
             digest_data = self.digest_generator.generate_digest(
@@ -160,16 +188,16 @@ class DigestService:
                 'message': f'Failed to generate digest: {str(e)}'
             }
     
-    def _can_generate_today(self, user_id: int) -> bool:
-        """Check if user can generate digest today"""
-        today = date.today()
-        daily_usage = DailyUsage.query.filter_by(
-            user_id=user_id,
-            usage_date=today
-        ).first()
-        
-        daily_limit = current_app.config.get('DAILY_DIGEST_LIMIT', 1)
-        return not daily_usage or daily_usage.digest_count < daily_limit
+    # def _can_generate_today(self, user_id: int) -> bool:
+    #     """Check if user can generate digest today - DEPRECATED: Daily limit removed"""
+    #     today = date.today()
+    #     daily_usage = DailyUsage.query.filter_by(
+    #         user_id=user_id,
+    #         usage_date=today
+    #     ).first()
+    #     
+    #     daily_limit = current_app.config.get('DAILY_DIGEST_LIMIT', 1)
+    #     return not daily_usage or daily_usage.digest_count < daily_limit
     
     def _update_daily_usage(self, user_id: int):
         """Update daily usage tracking"""
@@ -449,7 +477,7 @@ class DigestService:
             sender = conv.get('latest_sender', {})
             if isinstance(sender, dict):
                 sender_name = sender.get('name', 'Unknown')
-                sender_email = sender.get('address', '')
+                sender_email = sender.get('email', '')  # Fixed: was looking for 'address' instead of 'email'
             else:
                 sender_name = str(sender)
                 sender_email = ''

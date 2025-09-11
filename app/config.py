@@ -52,7 +52,7 @@ class Config:
     # Email summarization settings
     MAX_EMAILS_PER_DIGEST = int(os.getenv('MAX_EMAILS_PER_DIGEST', 200))
     DIGEST_GENERATION_TIMEOUT = int(os.getenv('DIGEST_GENERATION_TIMEOUT', 300))  # 5 minutes
-    DAILY_DIGEST_LIMIT = int(os.getenv('DAILY_DIGEST_LIMIT', 1))
+    # DAILY_DIGEST_LIMIT = int(os.getenv('DAILY_DIGEST_LIMIT', 1))  # Deprecated - no limit enforced
     
     # Working hours defaults
     DEFAULT_WORK_START_HOUR = int(os.getenv('DEFAULT_WORK_START_HOUR', 9))

@@ -33,14 +33,16 @@ def index():
         db.session.add(settings)
         db.session.commit()
     
-    # Check if user can generate digest today
+    # Get today's usage for statistics (daily limit removed)
     today = date.today()
     daily_usage = DailyUsage.query.filter_by(
         user_id=current_user.id,
         usage_date=today
     ).first()
     
-    can_generate = not daily_usage or daily_usage.digest_count < 1
+    # Daily limit removed - users can generate multiple digests
+    can_generate = True
+    digest_count_today = daily_usage.digest_count if daily_usage else 0
     
     # Get recent digests
     recent_digests = DigestRecord.query.filter_by(
@@ -54,10 +56,10 @@ def index():
     context = {
         'settings': settings.to_dict(),
         'can_generate': can_generate,
+        'digest_count_today': digest_count_today,
         'recent_digests': recent_digests,
         'total_digests': total_digests,
-        'microsoft_linked': current_user.has_microsoft_linked,
-        'next_available': 'Tomorrow' if not can_generate else 'Now'
+        'microsoft_linked': current_user.has_microsoft_linked
     }
     
     return render_template('main/dashboard.html', **context)
@@ -107,17 +109,10 @@ def view_digest(digest_id):
     # Extract digest data if it exists
     digest_data = digest.digest_data or {}
     
-    # Check if we have the formatted HTML version
-    if 'sections' in digest_data and 'metadata' in digest_data:
-        # We have structured data, let's format it
-        from app.services.digest_generator import StructuredDigestGenerator
-        generator = StructuredDigestGenerator()
-        digest.digest_data = generator.format_digest_html(digest_data)
-    
     # Pass both the digest record and extracted data
     context = {
         'digest': digest,
-        'digest_data': digest_data,
+        'digest_data': digest_data,  # Pass the structured data directly to template
         'current_user': current_user
     }
     
@@ -185,19 +180,23 @@ def usage_status():
         usage_date=today
     ).first()
     
-    can_generate = not daily_usage or daily_usage.digest_count < 1
+    # Daily limit removed - users can generate multiple digests
+    can_generate = True
+    digest_count_today = daily_usage.digest_count if daily_usage else 0
     
-    if can_generate:
-        message = "Ready to generate your daily digest!"
+    if digest_count_today == 0:
+        message = "Ready to generate your first digest of the day!"
+    elif digest_count_today == 1:
+        message = "Ready to generate another digest!"
     else:
-        message = "You've already generated today's digest. Please try again tomorrow."
+        message = f"Ready to generate digest #{digest_count_today + 1} today!"
     
     return jsonify({
         'can_generate': can_generate,
         'message': message,
-        'digest_count': daily_usage.digest_count if daily_usage else 0,
+        'digest_count': digest_count_today,
         'last_generation': daily_usage.last_generation_at.isoformat() if daily_usage and daily_usage.last_generation_at else None,
-        'next_available': 'Tomorrow at midnight' if not can_generate else 'Now'
+        'next_available': 'Now'
     })
 
 
