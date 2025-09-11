@@ -129,8 +129,8 @@ class User(UserMixin, db.Model):
     
     @property
     def is_oauth_user(self):
-        """Check if user registered via OAuth (no password)"""
-        return self.password_hash is None and self.microsoft_account_email is not None
+        """Check if user registered via OAuth (Microsoft account linked)"""
+        return self.microsoft_account_email is not None
     
     def update_last_login(self):
         """Update last login timestamp"""

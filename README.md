@@ -13,6 +13,7 @@ A professional Flask application that generates intelligent daily digests from y
 - **Multi-User Support**: Complete user management system with admin panel
 - **Microsoft OAuth Authentication**: Secure registration and login through Microsoft 365 accounts
 - **Digest Management**: Users can delete their own digests with confirmation dialogs
+- **Password Management**: All users can change passwords; OAuth users get default password for dual access
 
 ### Email Processing Constraints
 - **Volume Cap**: 200 emails maximum per digest generation

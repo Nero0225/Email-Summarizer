@@ -4,8 +4,8 @@ Main application forms
 This module contains Flask-WTF forms for the main application.
 """
 from flask_wtf import FlaskForm
-from wtforms import StringField, BooleanField, IntegerField, SelectField, SubmitField
-from wtforms.validators import DataRequired, NumberRange, ValidationError
+from wtforms import StringField, BooleanField, IntegerField, SelectField, SubmitField, PasswordField
+from wtforms.validators import DataRequired, NumberRange, ValidationError, EqualTo, Length
 import pytz
 
 
@@ -122,3 +122,23 @@ class FeedbackForm(FlaskForm):
     ])
     
     submit = SubmitField('Submit Feedback')
+
+
+class PasswordChangeForm(FlaskForm):
+    """Password change form for traditional login users"""
+    
+    current_password = PasswordField('Current Password', validators=[
+        DataRequired(message='Please enter your current password')
+    ])
+    
+    new_password = PasswordField('New Password', validators=[
+        DataRequired(message='Please enter a new password'),
+        Length(min=8, message='Password must be at least 8 characters long')
+    ])
+    
+    confirm_password = PasswordField('Confirm New Password', validators=[
+        DataRequired(message='Please confirm your new password'),
+        EqualTo('new_password', message='Passwords must match')
+    ])
+    
+    submit = SubmitField('Update Password')

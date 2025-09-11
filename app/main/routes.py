@@ -9,7 +9,7 @@ from flask import render_template, redirect, url_for, flash, request, jsonify, c
 from flask_login import login_required, current_user
 from app import db
 from app.main import main_bp
-from app.main.forms import SettingsForm
+from app.main.forms import SettingsForm, PasswordChangeForm
 from app.models import UserSettings, DailyUsage, DigestRecord
 from app.services.digest_service import DigestService
 from app.services.user_service import UserService
@@ -205,6 +205,37 @@ def settings():
     }
     
     return render_template('main/settings.html', **context)
+
+
+@main_bp.route('/change-password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    """Change password page - available for all users"""
+    
+    form = PasswordChangeForm()
+    
+    if form.validate_on_submit():
+        # Verify current password
+        if not current_user.check_password(form.current_password.data):
+            flash('Current password is incorrect.', 'danger')
+            return redirect(url_for('main.change_password'))
+        
+        try:
+            # Update password
+            current_user.set_password(form.new_password.data)
+            db.session.commit()
+            
+            flash('Your password has been updated successfully!', 'success')
+            current_app.logger.info(f"User {current_user.username} changed their password")
+            
+            return redirect(url_for('main.settings'))
+            
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f'Password change error for user {current_user.id}: {str(e)}')
+            flash('Error updating password. Please try again.', 'danger')
+    
+    return render_template('main/change_password.html', form=form)
 
 
 @main_bp.route('/api/usage-status')

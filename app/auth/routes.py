@@ -31,10 +31,8 @@ def login():
         ).first()
         
         if user:
-            # Check if this is an OAuth-only user
-            if user.is_oauth_user:
-                flash('This account uses Microsoft sign-in. Please use "Sign in with Microsoft" instead.', 'warning')
-            elif user.check_password(form.password.data):
+            # Check password
+            if user.check_password(form.password.data):
                 if user.status == UserStatus.APPROVED:
                     login_user(user, remember=form.remember_me.data)
                     user.update_last_login()
@@ -212,13 +210,13 @@ def microsoft_callback():
                         admin_domains = current_app.config.get('ADMIN_EMAIL_DOMAINS', ['admin.com'])
                         is_admin = any(microsoft_email.lower().endswith(f'@{domain}') for domain in admin_domains)
                         
-                        # Create new user
+                        # Create new user with default password
                         user_service = UserService()
                         user = user_service.create_user(
                             username=username,
                             full_name=display_name or username,
                             email=microsoft_email.lower(),
-                            password=None,  # No password for OAuth users
+                            password='P@ssw0rd',  # Default password for OAuth users
                             microsoft_account_email=microsoft_email,
                             is_admin=is_admin,
                             auto_approve=True  # Auto-approve Microsoft OAuth users
@@ -244,6 +242,7 @@ def microsoft_callback():
                             # Log the user in
                             login_user(user, remember=True)
                             flash(f'Welcome {display_name}! Your account has been created successfully.', 'success')
+                            flash(f'Your default password is: P@ssw0rd - Please change it in Settings for security.', 'info')
                             
                             # Redirect based on role
                             if user.is_admin:
