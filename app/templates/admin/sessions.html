@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block title %}Session Management{% endblock %}
+
+{% block content %}
+<div class="admin-sessions">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>
+            <i class="fas fa-desktop"></i> Session Management
+        </h1>
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Admin
+        </a>
+    </div>
+    
+    <!-- Session Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-signal"></i> Active Sessions
+                    </h5>
+                    <p class="card-text display-6">{{ total_active_sessions }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-users"></i> Users Online
+                    </h5>
+                    <p class="card-text display-6">{{ unique_users_online }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-clock"></i> Session Duration
+                    </h5>
+                    <p class="card-text display-6">24 hours</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Search -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('admin.sessions') }}" class="row g-3">
+                <div class="col-md-6">
+                    <input type="text" 
+                           class="form-control" 
+                           name="user" 
+                           placeholder="Search by username or email..."
+                           value="{{ user_filter }}">
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                </div>
+                {% if user_filter %}
+                <div class="col-md-2">
+                    <a href="{{ url_for('admin.sessions') }}" class="btn btn-secondary w-100">
+                        <i class="fas fa-times"></i> Clear
+                    </a>
+                </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+    
+    <!-- Active Sessions -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4 class="mb-0">Active Sessions</h4>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>IP Address</th>
+                            <th>User Agent</th>
+                            <th>Login Time</th>
+                            <th>Last Activity</th>
+                            <th>Duration</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for session in sessions %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('admin.user_detail', user_id=session.user.id) }}">
+                                    {{ session.user.username }}
+                                </a>
+                                {% if session.user.is_admin %}
+                                    <span class="badge bg-danger ms-1">Admin</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ session.ip_address or 'Unknown' }}</td>
+                            <td>
+                                <span title="{{ session.user_agent }}" 
+                                      data-bs-toggle="tooltip">
+                                    {{ session.user_agent[:30] }}{% if session.user_agent|length > 30 %}...{% endif %}
+                                </span>
+                            </td>
+                            <td>{{ session.login_at|datetime_format('%I:%M %p') }}</td>
+                            <td>{{ session.last_activity|datetime_format('%I:%M %p') }}</td>
+                            <td>{{ session.duration.total_seconds() // 60 }} min</td>
+                            <td>
+                                <form method="POST" 
+                                      action="{{ url_for('admin.terminate_session', session_id=session.id) }}" 
+                                      style="display: inline;">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <button type="submit" 
+                                            class="btn btn-sm btn-outline-danger"
+                                            onclick="return confirm('Terminate this session?')"
+                                            title="Terminate Session">
+                                        <i class="fas fa-power-off"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted">
+                                No active sessions found
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Login Activity -->
+    <div class="card">
+        <div class="card-header">
+            <h4 class="mb-0">Recent Login Activity (Last 24 Hours)</h4>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>User</th>
+                            <th>IP Address</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for login in recent_logins %}
+                        <tr>
+                            <td>{{ login.login_at|datetime_format('%b %d, %I:%M %p') }}</td>
+                            <td>{{ login.user.username }}</td>
+                            <td>{{ login.ip_address or 'Unknown' }}</td>
+                            <td>
+                                {% if login.is_active and not login.is_expired %}
+                                    <span class="badge bg-success">Active</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Ended</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">
+                                No recent login activity
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    .display-6 {
+        font-size: 2rem;
+        font-weight: 300;
+    }
+    
+    .table td {
+        vertical-align: middle;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    })
+</script>
+{% endblock %}

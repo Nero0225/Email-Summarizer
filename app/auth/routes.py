@@ -11,9 +11,41 @@ from urllib.parse import urlparse
 from app import db
 from app.auth import auth_bp
 from app.auth.forms import LoginForm, RegistrationForm
-from app.models import User, UserStatus, UserSettings, MicrosoftToken
+from app.models import User, UserStatus, UserSettings, MicrosoftToken, UserSession
 from app.services.microsoft_service import MicrosoftService
 from app.services.user_service import UserService
+import secrets
+
+
+def create_user_session(user_id):
+    """Create a new session for the user"""
+    try:
+        # Generate unique session ID
+        session_id = secrets.token_urlsafe(32)
+        
+        # Get client info
+        ip_address = request.remote_addr
+        user_agent = request.headers.get('User-Agent', '')[:255]  # Limit to 255 chars
+        
+        # Create session record
+        user_session = UserSession(
+            user_id=user_id,
+            session_id=session_id,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            duration_hours=24  # 24 hour sessions
+        )
+        
+        db.session.add(user_session)
+        db.session.commit()
+        
+        # Store session ID in Flask session
+        session['session_id'] = session_id
+        
+        return user_session
+    except Exception as e:
+        current_app.logger.error(f'Error creating user session: {str(e)}')
+        return None
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
@@ -36,6 +68,9 @@ def login():
                 if user.status == UserStatus.APPROVED:
                     login_user(user, remember=form.remember_me.data)
                     user.update_last_login()
+                    
+                    # Create session record
+                    create_user_session(user.id)
                     
                     # Handle next page redirect
                     next_page = request.args.get('next')
@@ -65,6 +100,24 @@ def login():
 @auth_bp.route('/logout')
 def logout():
     """User logout route"""
+    # Deactivate the current session
+    if current_user.is_authenticated and 'session_id' in session:
+        try:
+            user_session = UserSession.query.filter_by(
+                session_id=session['session_id'],
+                user_id=current_user.id,
+                is_active=True
+            ).first()
+            
+            if user_session:
+                user_session.deactivate()
+        except Exception as e:
+            current_app.logger.error(f'Error deactivating session: {str(e)}')
+    
+    # Clear session data
+    session.clear()
+    
+    # Flask-Login logout
     logout_user()
     flash('You have been logged out successfully.', 'info')
     return redirect(url_for('auth.login'))
@@ -185,6 +238,7 @@ def microsoft_callback():
                                 # Already has Microsoft linked, just log them in
                                 login_user(existing_user, remember=True)
                                 existing_user.update_last_login()
+                                create_user_session(existing_user.id)
                                 flash(f'Welcome back, {existing_user.full_name}!', 'success')
                                 
                                 # Redirect based on role
@@ -241,6 +295,7 @@ def microsoft_callback():
                             
                             # Log the user in
                             login_user(user, remember=True)
+                            create_user_session(user.id)
                             flash(f'Welcome {display_name}! Your account has been created successfully.', 'success')
                             flash(f'Your default password is: P@ssw0rd - Please change it in Settings for security.', 'info')
                             

@@ -79,6 +79,8 @@ class User(UserMixin, db.Model):
                              cascade='all, delete-orphan', uselist=False)
     daily_usage = db.relationship('DailyUsage', back_populates='user',
                                 cascade='all, delete-orphan')
+    sessions = db.relationship('UserSession', back_populates='user',
+                             cascade='all, delete-orphan')
     
     def __repr__(self):
         return f'<User {self.username}>'

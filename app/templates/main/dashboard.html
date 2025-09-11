@@ -229,7 +229,20 @@ document.getElementById('generateDigest')?.addEventListener('click', function() 
             'X-CSRFToken': csrfToken || ''
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        // Check if session was terminated (401 status)
+        if (response.status === 401) {
+            return response.json().then(data => {
+                if (data.session_terminated) {
+                    // Session was terminated, redirect to login
+                    window.location.href = data.redirect;
+                    return Promise.reject('Session terminated');
+                }
+                throw new Error(data.error || 'Unauthorized');
+            });
+        }
+        return response.json();
+    })
     .then(data => {
         hideLoading();
         if (data.status === 'success') {
@@ -250,11 +263,36 @@ document.getElementById('generateDigest')?.addEventListener('click', function() 
         }
     })
     .catch(error => {
+        if (error === 'Session terminated') {
+            // Already redirecting, don't show error
+            return;
+        }
         hideLoading();
         button.innerHTML = originalText;
         button.disabled = false;
         console.error('Error:', error);
     });
 });
+
+// Periodically check session validity (every 30 seconds)
+setInterval(function() {
+    fetch('{{ url_for("main.usage_status") }}', {
+        headers: {
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => {
+        if (response.status === 401) {
+            return response.json().then(data => {
+                if (data.session_terminated) {
+                    window.location.href = data.redirect;
+                }
+            });
+        }
+    })
+    .catch(error => {
+        // Ignore errors in session check
+    });
+}, 30000); // Check every 30 seconds
 </script>
 {% endblock %}

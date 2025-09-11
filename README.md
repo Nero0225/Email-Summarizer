@@ -46,6 +46,17 @@ The Email Summarizer uses Microsoft OAuth2 for secure authentication:
    - Regular users access the standard user dashboard
 4. **Account Linking**: Existing users can link their Microsoft accounts for email/calendar access
 
+### Admin Features
+
+Administrators have access to powerful management tools:
+
+- **User Management**: Approve, reject, suspend, or change user status
+- **Session Management**: Monitor active sessions, view login history, and terminate sessions
+- **System Monitoring**: Track usage statistics, performance metrics, and system health
+- **Log Viewer**: Access application logs for debugging and audit purposes
+- **Real-time Statistics**: View active users, daily digests, and pending approvals
+- **Simplified Settings**: Admin settings page excludes Microsoft 365 connection for focused administration
+
 ## 🚀 Quick Start
 
 ### 1. Clone the Repository
@@ -278,28 +289,3 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - OpenAI for intelligent text processing
 - Flask community for the excellent framework
 - All contributors and testers
-
-## 📞 Support
-
-For support, please:
-1. Check the documentation
-2. Search existing issues
-3. Create a new issue with detailed information
-
-## 🗺️ Roadmap
-
-### Version 1.1
-- [ ] Slack/Teams integration
-- [ ] Multiple calendar support
-- [ ] Email template responses
-- [ ] Mobile app
-
-### Version 1.2
-- [ ] Advanced AI insights
-- [ ] Team collaboration features
-- [ ] Analytics dashboard
-- [ ] Webhook support
-
----
-
-Built with ❤️ by the Email Summarizer Team

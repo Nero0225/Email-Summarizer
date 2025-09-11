@@ -10,6 +10,7 @@
         </h2>
         
         <!-- Microsoft 365 Connection -->
+        {% if not current_user.is_admin %}
         <div class="card mb-4 fade-in">
             <div class="card-header">
                 <h5 class="mb-0">
@@ -40,6 +41,7 @@
                 {% endif %}
             </div>
         </div>
+        {% endif %}
         
         <!-- Account Security -->
         <div class="card mb-4 fade-in">

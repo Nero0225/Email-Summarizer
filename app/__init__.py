@@ -7,18 +7,18 @@ for creating and configuring the email summarizer application.
 import logging
 import os
 from logging.handlers import RotatingFileHandler
-from flask import Flask
+from flask import Flask, session, redirect, url_for, request, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_session import Session
 from flask_cors import CORS
-from flask_login import LoginManager
+from flask_login import LoginManager, logout_user, current_user
 from flask_wtf.csrf import CSRFProtect
 
 # Initialize extensions
 db = SQLAlchemy()
 migrate = Migrate()
-session = Session()
+sess = Session()
 cors = CORS()
 login_manager = LoginManager()
 csrf = CSRFProtect()
@@ -49,7 +49,7 @@ def create_app(config_name='development'):
     # Initialize extensions with app
     db.init_app(app)
     migrate.init_app(app, db)
-    session.init_app(app)
+    sess.init_app(app)
     cors.init_app(app, resources={
         r"/api/*": {
             "origins": app.config.get('ALLOWED_ORIGINS', '*'),
@@ -77,6 +77,52 @@ def create_app(config_name='development'):
     app.register_blueprint(main_bp)
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(api_bp, url_prefix='/api/v1')
+    
+    # Register session validity checker
+    @app.before_request
+    def check_session_validity():
+        """Check if the current session is still valid"""
+        # Skip for static files and unauthenticated routes
+        if (request.endpoint and 
+            ('static' in request.endpoint or 
+             'auth' in request.endpoint or
+             not current_user.is_authenticated)):
+            return
+        
+        # Check if session ID exists
+        if 'session_id' in session:
+            from app.models import UserSession
+            user_session = UserSession.query.filter_by(
+                session_id=session['session_id'],
+                user_id=current_user.id,
+                is_active=True
+            ).first()
+            
+            # If session not found or expired, log out user
+            if not user_session or user_session.is_expired:
+                logout_user()
+                session.clear()
+                
+                # Handle AJAX requests differently
+                if request.is_json or 'application/json' in request.headers.get('Accept', ''):
+                    response = jsonify({
+                        'error': 'Session terminated',
+                        'message': 'Your session has been terminated. Please log in again.',
+                        'redirect': url_for('auth.login'),
+                        'session_terminated': True
+                    })
+                    response.status_code = 401
+                    return response
+                
+                # Regular request - redirect with flash
+                flash('Your session has been terminated. Please log in again.', 'warning')
+                return redirect(url_for('auth.login'))
+            
+            # Update last activity
+            try:
+                user_session.update_activity()
+            except Exception:
+                pass  # Don't break request on activity update failure
     
     # Configure logging
     if not app.debug and not app.testing:

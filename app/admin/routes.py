@@ -10,7 +10,7 @@ from flask_login import login_required, current_user
 from sqlalchemy import func
 from app import db
 from app.admin import admin_bp
-from app.models import User, UserStatus, UserRole, DigestRecord, DailyUsage
+from app.models import User, UserStatus, UserRole, DigestRecord, DailyUsage, UserSession
 from app.utils.decorators import admin_required
 from app.services.user_service import UserService
 
@@ -409,3 +409,93 @@ def logs():
         logs = f'Error reading logs: {str(e)}'
     
     return render_template('admin/logs.html', logs=logs, lines=lines)
+
+
+@admin_bp.route('/sessions')
+@login_required
+@admin_required
+def sessions():
+    """View and manage active user sessions"""
+    # Clean up expired sessions first
+    UserSession.cleanup_expired()
+    
+    # Get filter parameters
+    user_filter = request.args.get('user', '')
+    
+    # Get active sessions
+    query = UserSession.query.join(User).filter(
+        UserSession.is_active == True,
+        UserSession.expires_at > datetime.utcnow()
+    )
+    
+    if user_filter:
+        query = query.filter(
+            (User.username.contains(user_filter)) |
+            (User.email.contains(user_filter))
+        )
+    
+    sessions = query.order_by(UserSession.last_activity.desc()).all()
+    
+    # Get session statistics
+    total_active_sessions = UserSession.query.filter(
+        UserSession.is_active == True,
+        UserSession.expires_at > datetime.utcnow()
+    ).count()
+    
+    unique_users_online = db.session.query(UserSession.user_id).filter(
+        UserSession.is_active == True,
+        UserSession.expires_at > datetime.utcnow()
+    ).distinct().count()
+    
+    # Get recent login activity (last 24 hours)
+    recent_logins = UserSession.query.join(User).filter(
+        UserSession.login_at >= datetime.utcnow() - timedelta(hours=24)
+    ).order_by(UserSession.login_at.desc()).limit(10).all()
+    
+    context = {
+        'sessions': sessions,
+        'total_active_sessions': total_active_sessions,
+        'unique_users_online': unique_users_online,
+        'recent_logins': recent_logins,
+        'user_filter': user_filter
+    }
+    
+    return render_template('admin/sessions.html', **context)
+
+
+@admin_bp.route('/sessions/<int:session_id>/terminate', methods=['POST'])
+@login_required
+@admin_required
+def terminate_session(session_id):
+    """Terminate a specific session"""
+    session = UserSession.query.get_or_404(session_id)
+    
+    try:
+        session.deactivate()
+        flash(f'Session for {session.user.username} has been terminated.', 'success')
+        current_app.logger.info(f'Admin {current_user.username} terminated session {session_id}')
+    except Exception as e:
+        flash('Error terminating session. Please try again.', 'danger')
+        current_app.logger.error(f'Error terminating session {session_id}: {str(e)}')
+    
+    return redirect(url_for('admin.sessions'))
+
+
+@admin_bp.route('/sessions/user/<int:user_id>/terminate-all', methods=['POST'])
+@login_required
+@admin_required
+def terminate_user_sessions(user_id):
+    """Terminate all sessions for a specific user"""
+    user = User.query.get_or_404(user_id)
+    
+    try:
+        count = UserSession.terminate_user_sessions(user_id)
+        flash(f'Terminated {count} sessions for {user.username}.', 'success')
+        current_app.logger.info(
+            f'Admin {current_user.username} terminated all sessions for user {user.username}'
+        )
+    except Exception as e:
+        flash('Error terminating sessions. Please try again.', 'danger')
+        current_app.logger.error(f'Error terminating sessions for user {user_id}: {str(e)}')
+    
+    return redirect(url_for('admin.sessions'))

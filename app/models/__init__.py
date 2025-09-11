@@ -10,6 +10,7 @@ from app.models.digest import (
     UserSettings,
     DailyUsage
 )
+from app.models.session import UserSession
 
 __all__ = [
     'User',
@@ -18,5 +19,6 @@ __all__ = [
     'DigestRecord',
     'MicrosoftToken',
     'UserSettings',
-    'DailyUsage'
+    'DailyUsage',
+    'UserSession'
 ]
