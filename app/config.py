@@ -27,13 +27,16 @@ class Config:
     DATABASE_QUERY_TIMEOUT = 0.5  # Log slow queries (500ms)
     
     # Session configuration
-    SESSION_TYPE = 'filesystem'
-    SESSION_FILE_DIR = os.path.join(basedir, '..', 'flask_session')
+    SESSION_TYPE = 'sqlalchemy'  # Changed from filesystem to sqlalchemy
+    SESSION_SQLALCHEMY_TABLE = 'flask_sessions'
     SESSION_PERMANENT = True
     PERMANENT_SESSION_LIFETIME = timedelta(days=30)
     SESSION_COOKIE_NAME = 'email_summarizer_session'
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
+    # Optional: Add session cleanup settings
+    SESSION_CLEANUP_ENABLED = True
+    SESSION_CLEANUP_INTERVAL = timedelta(hours=1)
     
     # Security settings
     WTF_CSRF_ENABLED = True
@@ -125,8 +128,8 @@ class TestingConfig(Config):
     WTF_CSRF_ENABLED = False
     
     # Session configuration for testing
-    SESSION_TYPE = 'filesystem'
-    SESSION_FILE_DIR = '/tmp/test_sessions'
+    SESSION_TYPE = 'sqlalchemy'
+    SESSION_SQLALCHEMY_TABLE = 'flask_sessions'
     
     # Security
     SESSION_COOKIE_SECURE = False

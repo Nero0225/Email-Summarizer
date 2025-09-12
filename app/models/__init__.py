@@ -11,6 +11,7 @@ from app.models.digest import (
     DailyUsage
 )
 from app.models.session import UserSession
+from app.models.flask_session import FlaskSession
 
 __all__ = [
     'User',
@@ -20,5 +21,6 @@ __all__ = [
     'MicrosoftToken',
     'UserSettings',
     'DailyUsage',
-    'UserSession'
+    'UserSession',
+    'FlaskSession'
 ]

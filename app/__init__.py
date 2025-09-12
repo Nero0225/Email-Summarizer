@@ -49,7 +49,13 @@ def create_app(config_name='development'):
     # Initialize extensions with app
     db.init_app(app)
     migrate.init_app(app, db)
-    sess.init_app(app)
+    
+    # Initialize custom database session interface
+    if app.config.get('SESSION_TYPE') == 'sqlalchemy':
+        from app.utils.session_interface import SqlAlchemySessionInterface
+        SqlAlchemySessionInterface(app, db.session)
+    else:
+        sess.init_app(app)
     cors.init_app(app, resources={
         r"/api/*": {
             "origins": app.config.get('ALLOWED_ORIGINS', '*'),
